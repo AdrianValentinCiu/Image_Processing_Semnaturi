@@ -153,7 +153,7 @@ int calculateEuclidianDistance(cv::Point pointStart, cv::Point pointEnd)
 	return distance;
 }
 
-std::tuple<Mat, Mat> split_image(Mat & image, cv::Point split_coord, bool isHorizontal)
+std::tuple<Mat, Mat> splitImage(Mat & image, cv::Point split_coord, bool isHorizontal)
 {
 	if (isHorizontal) 
 	{
@@ -175,7 +175,7 @@ std::tuple<Mat, Mat> split_image(Mat & image, cv::Point split_coord, bool isHori
 	}
 }
 
-Point2f mass_center(Mat& image)
+Point2f massCenter(Mat& image)
 {
 	Moments m = moments(image, true);
 	// Calculate mass center
@@ -185,29 +185,34 @@ Point2f mass_center(Mat& image)
 	return center;
 }
 
-std::vector<Point2f> splitting_coord(Mat& image, Point2f init_mass_center, bool isHorizonatal)
+std::vector<Point2f> splittingCoordHorizontal(Mat& image, Point2f init_mass_center)
 {
 	std::vector<Point2f> feature_points;
-	std::tuple<Mat, Mat> splitted_img = split_image(image, init_mass_center, isHorizonatal);
-	Point2f mass_center_top = mass_center(std::get<0>(splitted_img));
-	Point2f mass_center_bottom = mass_center(std::get<1>(splitted_img));
+	std::tuple<Mat, Mat> splitted_img = splitImage(image, init_mass_center, true);
+	Point2f mass_center_top = massCenter(std::get<0>(splitted_img));
+	Point2f mass_center_bottom = massCenter(std::get<1>(splitted_img));
+	int difference = std::get<0>(splitted_img).rows;
 	feature_points.push_back(mass_center_top);
-	feature_points.push_back(mass_center_bottom);
+	feature_points.push_back(Point2f(mass_center_bottom.x, mass_center_bottom.y + difference));
 	imshow("top", std::get<0>(splitted_img));
 	imshow("bottom", std::get<1>(splitted_img));
 
 
-	std::tuple<Mat, Mat> splitted_img_top = split_image(std::get<0>(splitted_img), mass_center_top, isHorizonatal);
-	Point2f mass_center_top_top = mass_center(std::get<0>(splitted_img_top));
-	Point2f mass_center_top_bottom = mass_center(std::get<1>(splitted_img_top));
+	std::tuple<Mat, Mat> splitted_img_top = splitImage(std::get<0>(splitted_img), mass_center_top, true);
+	Point2f mass_center_top_top = massCenter(std::get<0>(splitted_img_top));
+	Point2f mass_center_top_bottom = massCenter(std::get<1>(splitted_img_top));
+	int difference2 = std::get<0>(splitted_img_top).rows;
+	mass_center_top_bottom.y += difference2;
 	feature_points.push_back(mass_center_top_top);
 	feature_points.push_back(mass_center_top_bottom);
 	imshow("top_top", std::get<0>(splitted_img_top));
 	imshow("top_bottom", std::get<1>(splitted_img_top));
 
-	std::tuple<Mat, Mat> splitted_img_bottom = split_image(std::get<1>(splitted_img), mass_center_bottom, isHorizonatal);
-	Point2f mass_center_bottom_top = mass_center(std::get<0>(splitted_img_bottom));
-	Point2f mass_center_bottom_bottom = mass_center(std::get<1>(splitted_img_bottom));
+	std::tuple<Mat, Mat> splitted_img_bottom = splitImage(std::get<1>(splitted_img), mass_center_bottom, true);
+	Point2f mass_center_bottom_top = massCenter(std::get<0>(splitted_img_bottom));
+	Point2f mass_center_bottom_bottom = massCenter(std::get<1>(splitted_img_bottom));
+	int difference3 = difference + std::get<0>(splitted_img_bottom).rows;
+	mass_center_bottom_bottom.y += difference3;
 	feature_points.push_back(mass_center_bottom_top);
 	feature_points.push_back(mass_center_bottom_bottom);
 	imshow("bottom_top", std::get<0>(splitted_img_bottom));
@@ -216,17 +221,53 @@ std::vector<Point2f> splitting_coord(Mat& image, Point2f init_mass_center, bool 
 	return feature_points;
 }
 
-std::vector<Point2f> feature_extraction(Mat& image)
+std::vector<Point2f> splittingCoordVertical(Mat& image, Point2f init_mass_center)
 {
 	std::vector<Point2f> feature_points;
-	std::vector<Point2f> left_feature_points = splitting_coord(image, mass_center(image), true);
-	std::vector<Point2f> right_feature_points = splitting_coord(image, mass_center(image), false);
+	std::tuple<Mat, Mat> splitted_img = splitImage(image, init_mass_center, false);
+	Point2f mass_center_left = massCenter(std::get<0>(splitted_img));
+	Point2f mass_center_right = massCenter(std::get<1>(splitted_img));
+	int difference = std::get<0>(splitted_img).cols;
+	feature_points.push_back(mass_center_left);
+	feature_points.push_back(Point2f(mass_center_right.x + difference, mass_center_right.y));
+	imshow("left", std::get<0>(splitted_img));
+	imshow("right", std::get<1>(splitted_img));
+
+
+	std::tuple<Mat, Mat> splitted_img_left = splitImage(std::get<0>(splitted_img), mass_center_left, false);
+	Point2f mass_center_left_left = massCenter(std::get<0>(splitted_img_left));
+	Point2f mass_center_left_right = massCenter(std::get<1>(splitted_img_left));
+	int difference2 = std::get<0>(splitted_img_left).cols;
+	mass_center_left_right.x += difference2;
+	feature_points.push_back(mass_center_left_left);
+	feature_points.push_back(mass_center_left_right);
+	imshow("left_left", std::get<0>(splitted_img_left));
+	imshow("left_right", std::get<1>(splitted_img_left));
+
+	std::tuple<Mat, Mat> splitted_img_right = splitImage(std::get<1>(splitted_img), mass_center_right, false);
+	Point2f mass_center_right_left = massCenter(std::get<0>(splitted_img_right));
+	Point2f mass_center_right_right = massCenter(std::get<1>(splitted_img_right));
+	int difference3 = difference + std::get<0>(splitted_img_right).cols;
+	mass_center_right_right.x += difference3;
+	feature_points.push_back(mass_center_right_left);
+	feature_points.push_back(mass_center_right_right);
+	imshow("bottom_top", std::get<0>(splitted_img_right));
+	imshow("bottom_bottom", std::get<1>(splitted_img_right));
+
+	return feature_points;
+}
+
+std::vector<Point2f> featureExtraction(Mat& image)
+{
+	std::vector<Point2f> feature_points;
+	std::vector<Point2f> left_feature_points = splittingCoordHorizontal(image, massCenter(image));
+	std::vector<Point2f> right_feature_points = splittingCoordVertical(image, massCenter(image));
 	feature_points.insert(feature_points.begin(), left_feature_points.begin(), left_feature_points.end());
 	feature_points.insert(feature_points.end(), right_feature_points.begin(), right_feature_points.end());
 	return feature_points;
 }
 
-void drawPoints(DataCSV& data, Mat& image)
+void drawSignature(DataCSV& data, Mat& image)
 {
 	int treshhold = 150;
 	for (int i = 0;i < data.number_of_rows-1; i++)
@@ -241,7 +282,7 @@ void drawPoints(DataCSV& data, Mat& image)
 	
 }
 
-void draw_feature_points(Mat img, std::vector<Point2f> feature_extraction_points)
+void drawFeaturePoints(Mat img, std::vector<Point2f> feature_extraction_points)
 {
 	for (Point2f feature_point : feature_extraction_points)
 	{
@@ -249,7 +290,7 @@ void draw_feature_points(Mat img, std::vector<Point2f> feature_extraction_points
 	}
 }
 
-void showDataFromCSV(char* fname)
+void showSignature(char* fname)
 {
 	
 	DataCSV points = readCSV(fname);
@@ -278,25 +319,67 @@ void showDataFromCSV(char* fname)
 	Mat_<uchar> img = Mat::zeros(Size(maxX, maxY), CV_8UC1);
 
 	// Draw the points on the image
-	drawPoints(points, img);
-	std::vector<Point2f> feature_extraction_points = feature_extraction(img);
-	for (Point2f feature_point : feature_extraction_points)
-	{
-		std::cout << feature_point.x << " " << feature_point.y << std::endl;
-	}
-	draw_feature_points(img, feature_extraction_points);
+	drawSignature(points, img);
+
 	// Show the image
 	imshow("Points_from_Signature", img);
 	waitKey(0);
 	
 }
 
-void testShowDataFromCSV()
+void testShowSignature()
 {
 	char fname[MAX_PATH];
 	while (openFileDlg(fname))
 	{
-		showDataFromCSV(fname);
+		showSignature(fname);
+	}
+}
+
+void signatureFeatureExtraction(char* fname) {
+	DataCSV points = readCSV(fname);
+
+	// Create an image to draw the points on
+	int minX = MAXINT, minY = MAXINT, maxX = 0, maxY = 0;
+	for (int i = 0; i < points.number_of_rows - 1; i++)
+	{
+		if (minX > points.rows.at(i).x)
+			minX = points.rows.at(i).x;
+		if (minY > points.rows.at(i).y)
+			minY = points.rows.at(i).y;
+		if (maxX < points.rows.at(i).x)
+			maxX = points.rows.at(i).x;
+		if (maxY < points.rows.at(i).y)
+			maxY = points.rows.at(i).y;
+	}
+	maxX -= minX;
+	maxY -= minY;
+	//std::cout << maxX << " " << minX << " " << maxY << "  " << minY << std::endl;
+	for (int i = 0; i < points.number_of_rows - 1; i++)
+	{
+		points.rows.at(i).x -= minX;
+		points.rows.at(i).y -= minY;
+	}
+	Mat_<uchar> img = Mat::zeros(Size(maxX, maxY), CV_8UC1);
+
+	// Draw the points on the image
+	drawSignature(points, img);
+	std::vector<Point2f> feature_extraction_points = featureExtraction(img);
+	for (Point2f feature_point : feature_extraction_points)
+	{
+		std::cout << feature_point.x << " " << feature_point.y << std::endl;
+	}
+	drawFeaturePoints(img, feature_extraction_points);
+	// Show the image
+	imshow("Points_from_Signature", img);
+	waitKey(0);
+}
+
+void testSignatureFeatureExtraction() {
+	char fname[MAX_PATH];
+	while (openFileDlg(fname))
+	{
+		signatureFeatureExtraction(fname);
 	}
 }
 
@@ -315,7 +398,8 @@ int main()
 		printf(" 1 - Basic image opening...\n");
 		printf(" 2 - Open BMP images from folder\n");
 		printf(" 3 - Color to Gray\n");
-		printf(" 4 - Show data from csv file\n");
+		printf(" 4 - Show signature\n");
+		printf(" 5 - Show signature + feature extraction\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
 		scanf("%d", &op);
@@ -331,7 +415,10 @@ int main()
 				testColor2Gray();
 				break;
 			case 4:
-				testShowDataFromCSV();
+				testShowSignature();
+				break;
+			case 5:
+				testSignatureFeatureExtraction();
 				break;
 		}
 	}
