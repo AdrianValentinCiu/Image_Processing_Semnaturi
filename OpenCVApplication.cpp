@@ -153,6 +153,79 @@ int calculateEuclidianDistance(cv::Point pointStart, cv::Point pointEnd)
 	return distance;
 }
 
+std::tuple<Mat, Mat> split_image(Mat & image, cv::Point split_coord, bool isHorizontal)
+{
+	if (isHorizontal) 
+	{
+		int split_point = split_coord.y;
+		Rect roi1(0, 0, image.cols, split_point);
+		Rect roi2(0, split_point, image.cols, image.rows - split_point);
+		Mat top_half = image(roi1);
+		Mat bottom_half = image(roi2);
+		return std::make_tuple(top_half, bottom_half);
+	}
+	else
+	{
+		int split_point = split_coord.x;
+		Rect roi1(0, 0, split_point, image.rows);
+		Rect roi2(split_point, 0, image.cols - split_point, image.rows);
+		Mat left_half = image(roi1);
+		Mat right_half = image(roi2);
+		return std::make_tuple(left_half, right_half);
+	}
+}
+
+Point2f mass_center(Mat& image)
+{
+	Moments m = moments(image, true);
+	// Calculate mass center
+	Point2f center(m.m10 / m.m00, m.m01 / m.m00);
+	std::cout << "Mass center coordinates: " << center.x << ", " << center.y << std::endl;
+	//circle(image, center, 5, Scalar(255, 255, 255), FILLED);
+	return center;
+}
+
+std::vector<Point2f> splitting_coord(Mat& image, Point2f init_mass_center, bool isHorizonatal)
+{
+	std::vector<Point2f> feature_points;
+	std::tuple<Mat, Mat> splitted_img = split_image(image, init_mass_center, isHorizonatal);
+	Point2f mass_center_top = mass_center(std::get<0>(splitted_img));
+	Point2f mass_center_bottom = mass_center(std::get<1>(splitted_img));
+	feature_points.push_back(mass_center_top);
+	feature_points.push_back(mass_center_bottom);
+	imshow("top", std::get<0>(splitted_img));
+	imshow("bottom", std::get<1>(splitted_img));
+
+
+	std::tuple<Mat, Mat> splitted_img_top = split_image(std::get<0>(splitted_img), mass_center_top, isHorizonatal);
+	Point2f mass_center_top_top = mass_center(std::get<0>(splitted_img_top));
+	Point2f mass_center_top_bottom = mass_center(std::get<1>(splitted_img_top));
+	feature_points.push_back(mass_center_top_top);
+	feature_points.push_back(mass_center_top_bottom);
+	imshow("top_top", std::get<0>(splitted_img_top));
+	imshow("top_bottom", std::get<1>(splitted_img_top));
+
+	std::tuple<Mat, Mat> splitted_img_bottom = split_image(std::get<1>(splitted_img), mass_center_bottom, isHorizonatal);
+	Point2f mass_center_bottom_top = mass_center(std::get<0>(splitted_img_bottom));
+	Point2f mass_center_bottom_bottom = mass_center(std::get<1>(splitted_img_bottom));
+	feature_points.push_back(mass_center_bottom_top);
+	feature_points.push_back(mass_center_bottom_bottom);
+	imshow("bottom_top", std::get<0>(splitted_img_bottom));
+	imshow("bottom_bottom", std::get<1>(splitted_img_bottom));
+
+	return feature_points;
+}
+
+std::vector<Point2f> feature_extraction(Mat& image)
+{
+	std::vector<Point2f> feature_points;
+	std::vector<Point2f> left_feature_points = splitting_coord(image, mass_center(image), true);
+	std::vector<Point2f> right_feature_points = splitting_coord(image, mass_center(image), false);
+	feature_points.insert(feature_points.begin(), left_feature_points.begin(), left_feature_points.end());
+	feature_points.insert(feature_points.end(), right_feature_points.begin(), right_feature_points.end());
+	return feature_points;
+}
+
 void drawPoints(DataCSV& data, Mat& image)
 {
 	int treshhold = 150;
@@ -165,11 +238,15 @@ void drawPoints(DataCSV& data, Mat& image)
 		if(calculateEuclidianDistance(pointStart, pointEnd) < treshhold)
 			line(image, pointStart, pointEnd, Scalar(255, 255, 255), 3);
 	}
-	Moments m = moments(image, true);
-	// Calculate mass center
-	Point2f center(m.m10 / m.m00, m.m01 / m.m00);
-	std::cout << "Mass center coordinates: " << center.x << ", " << center.y << std::endl;
-	circle(image, center, 5, Scalar(255, 255, 255), FILLED);
+	
+}
+
+void draw_feature_points(Mat img, std::vector<Point2f> feature_extraction_points)
+{
+	for (Point2f feature_point : feature_extraction_points)
+	{
+		circle(img, feature_point, 5, Scalar(125, 125, 125), FILLED);
+	}
 }
 
 void showDataFromCSV(char* fname)
@@ -202,9 +279,12 @@ void showDataFromCSV(char* fname)
 
 	// Draw the points on the image
 	drawPoints(points, img);
-
-	
-
+	std::vector<Point2f> feature_extraction_points = feature_extraction(img);
+	for (Point2f feature_point : feature_extraction_points)
+	{
+		std::cout << feature_point.x << " " << feature_point.y << std::endl;
+	}
+	draw_feature_points(img, feature_extraction_points);
 	// Show the image
 	imshow("Points_from_Signature", img);
 	waitKey(0);
