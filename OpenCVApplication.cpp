@@ -147,12 +147,23 @@ DataCSV readCSV(char* file_name)
 	return data;
 }
 
+int calculateEuclidianDistance(cv::Point pointStart, cv::Point pointEnd)
+{
+	int distance = sqrt((pointEnd.x - pointStart.x) * (pointEnd.x - pointStart.x) + (pointEnd.y - pointStart.y) * (pointEnd.y - pointStart.y));
+	return distance;
+}
+
 void drawPoints(DataCSV& data, Mat& image)
 {
-	for (int i = 0;i < data.number_of_rows; i++)
+	int treshhold = 150;
+	for (int i = 0;i < data.number_of_rows-1; i++)
 	{
-		cv::Point point(data.rows.at(i).x, data.rows.at(i).y);
-		circle(image, point, 5, Scalar(255, 255, 255), FILLED);
+		cv::Point pointStart(data.rows.at(i).x, data.rows.at(i).y);
+		cv::Point pointEnd(data.rows.at(i+1).x, data.rows.at(i+1).y);
+		//std::cout << pointStart.x << " " << pointStart.y << " " << pointEnd.x << " " << pointEnd.y << std::endl;
+		//circle(image, pointStart, 5, Scalar(255, 255, 255), FILLED);
+		if(calculateEuclidianDistance(pointStart, pointEnd) < treshhold)
+			line(image, pointStart, pointEnd, Scalar(255, 255, 255), 3);
 	}
 	std::cout << "done draw data" << "\n";
 }
