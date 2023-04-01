@@ -165,7 +165,11 @@ void drawPoints(DataCSV& data, Mat& image)
 		if(calculateEuclidianDistance(pointStart, pointEnd) < treshhold)
 			line(image, pointStart, pointEnd, Scalar(255, 255, 255), 3);
 	}
-	std::cout << "done draw data" << "\n";
+	Moments m = moments(image, true);
+	// Calculate mass center
+	Point2f center(m.m10 / m.m00, m.m01 / m.m00);
+	std::cout << "Mass center coordinates: " << center.x << ", " << center.y << std::endl;
+	circle(image, center, 5, Scalar(255, 255, 255), FILLED);
 }
 
 void showDataFromCSV(char* fname)
@@ -174,10 +178,32 @@ void showDataFromCSV(char* fname)
 	DataCSV points = readCSV(fname);
 
 	// Create an image to draw the points on
-	Mat_<uchar> img = Mat::zeros(Size(1500, 720), CV_8UC1);
+	int minX = MAXINT, minY = MAXINT, maxX = 0, maxY = 0;
+	for (int i = 0; i < points.number_of_rows - 1; i++)
+	{
+		if (minX > points.rows.at(i).x)
+			minX = points.rows.at(i).x;
+		if (minY > points.rows.at(i).y)
+			minY = points.rows.at(i).y;
+		if (maxX < points.rows.at(i).x)
+			maxX = points.rows.at(i).x;
+		if (maxY < points.rows.at(i).y)
+			maxY = points.rows.at(i).y;
+	}
+	maxX -= minX;
+	maxY -= minY;
+	//std::cout << maxX << " " << minX << " " << maxY << "  " << minY << std::endl;
+	for (int i = 0; i < points.number_of_rows - 1; i++)
+	{
+		points.rows.at(i).x -= minX;
+		points.rows.at(i).y -= minY;
+	}
+	Mat_<uchar> img = Mat::zeros(Size(maxX, maxY), CV_8UC1);
 
 	// Draw the points on the image
 	drawPoints(points, img);
+
+	
 
 	// Show the image
 	imshow("Points_from_Signature", img);
