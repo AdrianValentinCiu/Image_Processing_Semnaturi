@@ -84,10 +84,58 @@ typedef struct {
 	double accelz;
 }RowCSV;
 
+typedef struct DataPoint {
+	Point2f coord;
+	int label;
+} DataPoint;
+
 typedef struct {
 	std::vector<RowCSV> rows;
 	long number_of_rows;
 }DataCSV;
+
+double euclideanDistance(const Point2f& a, const Point2f& b) {
+	double distance = 0.0;
+	distance += pow(a.x - b.x, 2) + pow(a.y - b.y, 2);
+	return sqrt(distance);
+}
+
+int knn_classify(const std::vector<DataPoint>& dataset, const std::vector<Point2f>& inputs, int k, int m) {
+	std::vector<int> predictedLabels;
+	for (int j = 0; j < inputs.size(); j++) {
+		std::vector<std::pair<double, int>> distances;
+		for (int i = 0; i < dataset.size(); i++) {
+			double distance = euclideanDistance(dataset[i].coord, inputs[j]);
+			distances.emplace_back(distance, dataset[i].label);
+		}
+		sort(distances.begin(), distances.end());
+		std::vector<int> counts(m);
+		for (int i = 0; i < k; ++i) {
+			int label = distances[i].second;
+			counts[label]++;
+		}
+		int maxCount = 0;
+		int maxLabel = -1;
+		for (int i = 0; i < m; ++i) {
+			if (counts[i] > maxCount) {
+				maxCount = counts[i];
+				maxLabel = i;
+			}
+		}
+		predictedLabels.push_back(maxLabel);
+	}
+	// Return the most frequent label among the predictions
+	int maxCount = 0;
+	int maxLabel = -1;
+	for (int i = 0; i < m; ++i) {
+		int counter = count(predictedLabels.begin(), predictedLabels.end(), i);
+		if (counter > maxCount) {
+			maxCount = counter;
+			maxLabel = i;
+		}
+	}
+	return maxLabel;
+}
 
 DataCSV readCSV(char* file_name)
 {
@@ -476,6 +524,11 @@ void testSignatureFeatureExtraction() {
 	{
 		signatureFeatureExtraction(fname);
 	}
+}
+
+void create_test_data_set()
+{
+
 }
 
 
