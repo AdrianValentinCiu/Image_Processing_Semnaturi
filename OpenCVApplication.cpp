@@ -526,10 +526,47 @@ void testSignatureFeatureExtraction() {
 	}
 }
 
-void create_test_data_set()
+void createTestDataSet(char* fname)
 {
+	/*
+	DataCSV points = readCSV(fname);
+	std::ofstream fout; // open the file in write mode
+	fout.open("out.txt", std::ios::out);
+	if (!fout.is_open()) { // check if the file was opened successfully
+		std::cout << "Error opening file!" << std::endl;
+		return;
+	}
+	
+	file << "Test" << '\n';
+	for (RowCSV rowCSV : points.rows) {
+		//std::cout << rowCSV.x << std::endl;
+		file << "Name" << " " << "Age" << '\n';
+	}
+	*/
+	std::ofstream outfile("signatures_test_data.txt");
 
+	if (outfile.is_open()) { // check if the file is successfully opened
+		// write data to the file
+		outfile << "This is some data that I'm writing to a new file.\n";
+		outfile << "I can write multiple lines by calling outfile multiple times.\n";
+
+		// close the file
+		outfile.close();
+		std::cout << "Data successfully written to the file." << std::endl;
+	}
+	else {
+		std::cout << "Unable to create file." << std::endl;
+	}
 }
+
+void testCreateTestDataSet() {
+	char fname[MAX_PATH];
+	while (openFileDlg(fname))
+	{
+		createTestDataSet(fname);
+	}
+}
+
 
 
 //------------------------------------------------------------------M A I N-------------------------------------------------------------------------
@@ -550,6 +587,7 @@ int main()
 		printf(" 3 - Color to Gray\n");
 		printf(" 4 - Show signature\n");
 		printf(" 5 - Show signature + feature extraction\n");
+		printf(" 6 - Add user to data set\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
 		scanf("%d", &op);
@@ -569,6 +607,9 @@ int main()
 				break;
 			case 5:
 				testSignatureFeatureExtraction();
+				break;
+			case 6:
+				testCreateTestDataSet();
 				break;
 		}
 	}
