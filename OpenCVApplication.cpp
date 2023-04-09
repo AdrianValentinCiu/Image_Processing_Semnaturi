@@ -7,6 +7,69 @@
 #include "OpenCVApplication.h"
 
 wchar_t* projectPath;
+void testOpenImage()
+{
+	char fname[MAX_PATH];
+	while (openFileDlg(fname))
+	{
+		std::cout << fname << std::endl;
+		Mat src;
+		src = imread(fname);
+		imshow("opened image", src);
+		waitKey();
+	}
+}
+
+void testOpenImagesFld()
+{
+	char folderName[MAX_PATH];
+	if (openFolderDlg(folderName) == 0)
+		return;
+	std::cout << folderName << std::endl;
+	char fname[MAX_PATH];
+	FileGetter fg(folderName, "bmp");
+	while (fg.getNextAbsFile(fname))
+	{
+		std::cout << fname << std::endl;
+		Mat src;
+		src = imread(fname);
+		imshow(fg.getFoundFileName(), src);
+		if (waitKey() == 27) //ESC pressed
+			break;
+	}
+}
+
+void testColor2Gray()
+{
+	char fname[MAX_PATH];
+	while (openFileDlg(fname))
+	{
+		Mat_<Vec3b> src = imread(fname, IMREAD_COLOR);
+
+		int height = src.rows;
+		int width = src.cols;
+
+		Mat_<uchar> dst(height, width);
+
+		for (int i = 0; i < height; i++)
+		{
+			for (int j = 0; j < width; j++)
+			{
+				Vec3b v3 = src(i, j);
+				uchar b = v3[0];
+				uchar g = v3[1];
+				uchar r = v3[2];
+				dst(i, j) = (r + g + b) / 3;
+			}
+		}
+
+		imshow("original image", src);
+		imshow("gray image", dst);
+		waitKey();
+	}
+}
+
+//------------------------------------------------------------------P R O J E C T-------------------------------------------------------------------------
 
 typedef struct {
 	double x;
@@ -25,68 +88,6 @@ typedef struct {
 	std::vector<RowCSV> rows;
 	long number_of_rows;
 }DataCSV;
-
-void testOpenImage()
-{
-	char fname[MAX_PATH];
-	while(openFileDlg(fname))
-	{
-		std::cout << fname << std::endl;
-		Mat src;
-		src = imread(fname);
-		imshow("opened image",src);
-		waitKey();
-	}
-}
-
-void testOpenImagesFld()
-{
-	char folderName[MAX_PATH];
-	if (openFolderDlg(folderName)==0)
-		return;
-	std::cout << folderName << std::endl;
-	char fname[MAX_PATH];
-	FileGetter fg(folderName,"bmp");
-	while(fg.getNextAbsFile(fname))
-	{
-		std::cout << fname << std::endl;
-		Mat src;
-		src = imread(fname);
-		imshow(fg.getFoundFileName(),src);
-		if (waitKey()==27) //ESC pressed
-			break;
-	}
-}
-
-void testColor2Gray()
-{
-	char fname[MAX_PATH];
-	while(openFileDlg(fname))
-	{
-		Mat_<Vec3b> src = imread(fname, IMREAD_COLOR);
-
-		int height = src.rows;
-		int width = src.cols;
-
-		Mat_<uchar> dst(height, width);
-
-		for (int i=0; i<height; i++)
-		{
-			for (int j=0; j<width; j++)
-			{
-				Vec3b v3 = src(i,j);
-				uchar b = v3[0];
-				uchar g = v3[1];
-				uchar r = v3[2];
-				dst(i,j) = (r+g+b)/3;
-			}
-		}
-		
-		imshow("original image",src);
-		imshow("gray image",dst);
-		waitKey();
-	}
-}
 
 DataCSV readCSV(char* file_name)
 {
@@ -147,13 +148,13 @@ DataCSV readCSV(char* file_name)
 	return data;
 }
 
-int calculateEuclidianDistance(cv::Point pointStart, cv::Point pointEnd)
+int getEuclidianDistance(cv::Point pointStart, cv::Point pointEnd)
 {
 	int distance = sqrt((pointEnd.x - pointStart.x) * (pointEnd.x - pointStart.x) + (pointEnd.y - pointStart.y) * (pointEnd.y - pointStart.y));
 	return distance;
 }
 
-std::tuple<Mat, Mat> splitImage(Mat & image, cv::Point split_coord, bool isHorizontal)
+std::tuple<Mat, Mat> splitImage(Mat& image, cv::Point split_coord, bool isHorizontal)
 {
 	if (isHorizontal) 
 	{
@@ -267,7 +268,7 @@ std::vector<Point2f> featureExtraction(Mat& image)
 	return feature_points;
 }
 
-void drawSignature(DataCSV& data, Mat& image)
+void drawSignature(Mat& image, DataCSV& data)
 {
 	int treshhold = 150;
 	for (int i = 0;i < data.number_of_rows-1; i++)
@@ -276,25 +277,22 @@ void drawSignature(DataCSV& data, Mat& image)
 		cv::Point pointEnd(data.rows.at(i+1).x, data.rows.at(i+1).y);
 		//std::cout << pointStart.x << " " << pointStart.y << " " << pointEnd.x << " " << pointEnd.y << std::endl;
 		//circle(image, pointStart, 5, Scalar(255, 255, 255), FILLED);
-		if(calculateEuclidianDistance(pointStart, pointEnd) < treshhold)
+		if(getEuclidianDistance(pointStart, pointEnd) < treshhold)
 			line(image, pointStart, pointEnd, Scalar(255, 255, 255), 3);
 	}
 	
 }
 
-void drawFeaturePoints(Mat img, std::vector<Point2f> feature_extraction_points)
+void drawFeaturePoints(Mat& imgage, std::vector<Point2f> feature_extraction_points)
 {
 	for (Point2f feature_point : feature_extraction_points)
 	{
-		circle(img, feature_point, 5, Scalar(125, 125, 125), FILLED);
+		circle(imgage, feature_point, 5, Scalar(125, 125, 125), FILLED);
 	}
 }
 
-void showSignature(char* fname)
+Mat_<uchar> getCenteredWindow(DataCSV& points)
 {
-	
-	DataCSV points = readCSV(fname);
-
 	// Create an image to draw the points on
 	int minX = MAXINT, minY = MAXINT, maxX = 0, maxY = 0;
 	for (int i = 0; i < points.number_of_rows - 1; i++)
@@ -317,12 +315,20 @@ void showSignature(char* fname)
 		points.rows.at(i).y -= minY;
 	}
 	Mat_<uchar> img = Mat::zeros(Size(maxX, maxY), CV_8UC1);
+	return img;
+}
 
-	// Draw the points on the image
-	drawSignature(points, img);
+void showSignature(char* fname)
+{
+	
+	DataCSV points = readCSV(fname);
+	Mat_<uchar> img = getCenteredWindow(points);
+
+	// Draw the signature centered
+	drawSignature(img, points);
 
 	// Show the image
-	imshow("Points_from_Signature", img);
+	imshow("Signature", img);
 	waitKey(0);
 	
 }
@@ -338,40 +344,19 @@ void testShowSignature()
 
 void signatureFeatureExtraction(char* fname) {
 	DataCSV points = readCSV(fname);
+	Mat_<uchar> img = getCenteredWindow(points);
 
-	// Create an image to draw the points on
-	int minX = MAXINT, minY = MAXINT, maxX = 0, maxY = 0;
-	for (int i = 0; i < points.number_of_rows - 1; i++)
-	{
-		if (minX > points.rows.at(i).x)
-			minX = points.rows.at(i).x;
-		if (minY > points.rows.at(i).y)
-			minY = points.rows.at(i).y;
-		if (maxX < points.rows.at(i).x)
-			maxX = points.rows.at(i).x;
-		if (maxY < points.rows.at(i).y)
-			maxY = points.rows.at(i).y;
-	}
-	maxX -= minX;
-	maxY -= minY;
-	//std::cout << maxX << " " << minX << " " << maxY << "  " << minY << std::endl;
-	for (int i = 0; i < points.number_of_rows - 1; i++)
-	{
-		points.rows.at(i).x -= minX;
-		points.rows.at(i).y -= minY;
-	}
-	Mat_<uchar> img = Mat::zeros(Size(maxX, maxY), CV_8UC1);
-
-	// Draw the points on the image
-	drawSignature(points, img);
+	// Draw the signature centered
+	drawSignature(img, points);
 	std::vector<Point2f> feature_extraction_points = featureExtraction(img);
 	for (Point2f feature_point : feature_extraction_points)
 	{
 		std::cout << feature_point.x << " " << feature_point.y << std::endl;
 	}
 	drawFeaturePoints(img, feature_extraction_points);
-	// Show the image
-	imshow("Points_from_Signature", img);
+
+	// Show the image with feature extraction points
+	imshow("Signature with feature extraction points", img);
 	waitKey(0);
 }
 
@@ -383,6 +368,8 @@ void testSignatureFeatureExtraction() {
 	}
 }
 
+
+//------------------------------------------------------------------M A I N-------------------------------------------------------------------------
 
 int main()
 {
