@@ -100,6 +100,8 @@ double euclideanDistance(const Point2f& a, const Point2f& b) {
 	return sqrt(distance);
 }
 
+// k = nr of neighbours
+// m = nr of labels
 int knn_classify(const std::vector<DataPoint>& dataset, const std::vector<Point2f>& inputs, int k, int m) {
 	std::vector<int> predictedLabels;
 	for (int j = 0; j < inputs.size(); j++) {
