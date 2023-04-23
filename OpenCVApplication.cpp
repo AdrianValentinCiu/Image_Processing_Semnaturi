@@ -113,7 +113,7 @@ int knn_classify(const std::vector<DataPoint>& dataset, const std::vector<Point2
 		std::vector<int> counts(dataset.size());
 		for (int i = 0; i < k; ++i) {
 			int label = distances[i].second;
-			counts[label]++;
+			counts[label-1]++;
 		}
 		int maxCount = 0;
 		int maxLabel = -1;
@@ -567,47 +567,6 @@ void testSignatureFeatureExtraction() {
 	}
 }
 
-void createTestDataSet(char* fname)
-{
-	/*
-	DataCSV points = readCSV(fname);
-	std::ofstream fout; // open the file in write mode
-	fout.open("out.txt", std::ios::out);
-	if (!fout.is_open()) { // check if the file was opened successfully
-		std::cout << "Error opening file!" << std::endl;
-		return;
-	}
-	
-	file << "Test" << '\n';
-	for (RowCSV rowCSV : points.rows) {
-		//std::cout << rowCSV.x << std::endl;
-		file << "Name" << " " << "Age" << '\n';
-	}
-	*/
-	std::ofstream outfile("signatures_test_data.txt");
-
-	if (outfile.is_open()) { // check if the file is successfully opened
-		// write data to the file
-		outfile << "This is some data that I'm writing to a new file.\n";
-		outfile << "I can write multiple lines by calling outfile multiple times.\n";
-
-		// close the file
-		outfile.close();
-		std::cout << "Data successfully written to the file." << std::endl;
-	}
-	else {
-		std::cout << "Unable to create file." << std::endl;
-	}
-}
-
-void testCreateTestDataSet() {
-	char fname[MAX_PATH];
-	while (openFileDlg(fname))
-	{
-		createTestDataSet(fname);
-	}
-}
-
 std::vector<std::string> matching_table = { "Naggy",  "Kovues", "Toth", "Szabo", "Honot", "Varga", "Kiv", "Molnar", "Wemeth", "Fwba", "Balogh", "Pepp", "Taracs", "Fahasz", "Lakatos", "Meszavos", "Olah", "Simon", "Hm", "Fehete"};
 
 void classifySignature(char* fname)
@@ -621,9 +580,9 @@ void classifySignature(char* fname)
 	for (Point2f feature_extraction_point : feature_extraction_points)
 		std::cout << feature_extraction_point.x << " " << feature_extraction_point.y << std::endl;
 	drawFeaturePoints(img, feature_extraction_points);
-	std::vector<DataPoint> dataset;
+	std::vector<DataPoint> dataset = readDataSetPoint("DataSetFirst20.csv");
 	int label = knn_classify(dataset, feature_extraction_points, 3);
-	std::cout << "Signature belongs to: " << matching_table[label] << std::endl;
+	std::cout << "Signature belongs to: " << label << " " << matching_table[label - 1] << std::endl;
 	imshow("Signature with feature extraction points", img);
 	waitKey(0);
 }
@@ -685,8 +644,7 @@ int main()
 		printf(" 3 - Color to Gray\n");
 		printf(" 4 - Show signature\n");
 		printf(" 5 - Show signature + feature extraction\n");
-		printf(" 6 - Add user to data set\n");
-		printf(" 7 - Classify signature\n");
+		printf(" 6 - Classify signature\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
 		scanf("%d", &op);
@@ -708,9 +666,6 @@ int main()
 				testSignatureFeatureExtraction();
 				break;
 			case 6:
-				testCreateTestDataSet();
-				break;
-			case 7:
 				testClassifySignature();
 				break;
 		}
