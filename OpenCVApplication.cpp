@@ -84,7 +84,7 @@ typedef struct {
 	double accelz;
 }RowCSV;
 
-typedef struct DataPoint {
+typedef struct {
 	Point2f coord;
 	int label;
 } DataPoint;
@@ -101,7 +101,7 @@ double euclideanDistance(const Point2f& a, const Point2f& b) {
 }
 
 // k = nr of neighbours
-// m = nr of labels
+// m = nr of labels = dataset.size()
 int knn_classify(const std::vector<DataPoint>& dataset, const std::vector<Point2f>& inputs, int k, int m) {
 	std::vector<int> predictedLabels;
 	for (int j = 0; j < inputs.size(); j++) {
@@ -196,6 +196,45 @@ DataCSV readCSV(char* file_name)
 
 	file.close(); // Close the file
 	return data;
+}
+
+std::vector<DataPoint> readDataSetPoint(char* file_name)
+{
+	std::ifstream file(file_name);
+	std::vector<DataPoint> dataPoints;
+	// Check if file is opened successfully
+	if (!file.is_open()) {
+		std::cerr << "Error opening dataset file" << std::endl;
+		return dataPoints;
+	}
+
+	std::string line, field;
+
+	// Read each line of the file
+	std::getline(file, line);//reading the first line with headers and ignoring it
+	while (std::getline(file, line)) {
+		std::stringstream ss(line);
+
+		// Parse each line
+		DataPoint data;
+		std::getline(ss, field, ',');//get x coord
+		data.coord.x = std::stod(field);
+		std::getline(ss, field, ',');//get y coord
+		data.coord.y = std::stod(field);
+		std::getline(ss, field, ',');//get label
+		data.label = std::stod(field);
+
+		dataPoints.push_back(data);
+	}
+
+	// Print the data to the console
+	/*for (int i = 0; i < dataPoints.size(); i++) {
+		std::cout << "x: " << dataPoints.at(i).coord.x << ", y: " << dataPoints.at(i).coord.y;
+		std::cout << ", label: " << dataPoints.at(i).label << std::endl;
+	}*/
+
+	file.close(); // Close the file
+	return dataPoints;
 }
 
 int getEuclidianDistance(cv::Point pointStart, cv::Point pointEnd)
@@ -580,6 +619,36 @@ void testCreateTestDataSet() {
 	}
 }
 
+//a nu se deschide fisierul .csv pana nu se termina de scris toate datele
+void writeDataSet() {
+	char fname[MAX_PATH];
+	int label = 1;
+	while(openFileDlg(fname))
+	{
+		DataCSV points = readCSV(fname);
+		Mat_<uchar> img = getCenteredWindow(points);
+		// Draw the signature centered
+		drawSignature(img, points);
+		std::vector<Point2f> feature_extraction_points = featureExtraction(img, points);
+
+
+		//WRITE IN CSV FILE
+		std::fstream fout;
+		fout.open("../output.csv", std::ios::out | std::ios::app);
+		// Insert the data to file 
+		for (Point2f feature_point : feature_extraction_points)
+		{
+			fout << feature_point.x << ", "
+				<< feature_point.y << ", "
+				<< label << ", "
+				<< "\n";
+		}
+		// close the file
+		fout.close();
+		label++;
+	}
+}
+
 //------------------------------------------------------------------M A I N-------------------------------------------------------------------------
 
 int main()
@@ -625,6 +694,6 @@ int main()
 		}
 	}
 	while (op!=0);
-
+	//writeDataSet();
 	return 0;
 }
