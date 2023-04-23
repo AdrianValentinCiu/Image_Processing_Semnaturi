@@ -101,8 +101,7 @@ double euclideanDistance(const Point2f& a, const Point2f& b) {
 }
 
 // k = nr of neighbours
-// m = nr of labels
-int knn_classify(const std::vector<DataPoint>& dataset, const std::vector<Point2f>& inputs, int k, int m) {
+int knn_classify(const std::vector<DataPoint>& dataset, const std::vector<Point2f>& inputs, int k) {
 	std::vector<int> predictedLabels;
 	for (int j = 0; j < inputs.size(); j++) {
 		std::vector<std::pair<double, int>> distances;
@@ -111,14 +110,14 @@ int knn_classify(const std::vector<DataPoint>& dataset, const std::vector<Point2
 			distances.emplace_back(distance, dataset[i].label);
 		}
 		sort(distances.begin(), distances.end());
-		std::vector<int> counts(m);
+		std::vector<int> counts(dataset.size());
 		for (int i = 0; i < k; ++i) {
 			int label = distances[i].second;
 			counts[label]++;
 		}
 		int maxCount = 0;
 		int maxLabel = -1;
-		for (int i = 0; i < m; ++i) {
+		for (int i = 0; i < dataset.size(); ++i) {
 			if (counts[i] > maxCount) {
 				maxCount = counts[i];
 				maxLabel = i;
@@ -129,7 +128,7 @@ int knn_classify(const std::vector<DataPoint>& dataset, const std::vector<Point2
 	// Return the most frequent label among the predictions
 	int maxCount = 0;
 	int maxLabel = -1;
-	for (int i = 0; i < m; ++i) {
+	for (int i = 0; i < dataset.size(); ++i) {
 		int counter = count(predictedLabels.begin(), predictedLabels.end(), i);
 		if (counter > maxCount) {
 			maxCount = counter;
@@ -345,39 +344,35 @@ void cropImage(Mat& image)
 std::vector<Point2f> splittingCoordHorizontal(Mat& image, Point2f init_mass_center)
 {
 	std::vector<Point2f> feature_points;
-
 	std::tuple<Mat, Mat> splitted_img = splitImage(image, init_mass_center, true);
-	Mat matTop = std::get<0>(splitted_img);
-	Mat matBottom = std::get<1>(splitted_img);
-	Point2f mass_center_top = massCenterSimple(matTop);
-	Point2f mass_center_bottom = massCenterSimple(matBottom);
+	Point2f mass_center_top = massCenterSimple(std::get<0>(splitted_img));
+	Point2f mass_center_bottom = massCenterSimple(std::get<1>(splitted_img));
+	int difference = std::get<0>(splitted_img).rows;
 	feature_points.push_back(mass_center_top);
-	feature_points.push_back(Point2f(mass_center_bottom.x, mass_center_bottom.y + matTop.rows));
-	//imshow("top", matTop);
-	//imshow("bottom", matBottom);
+	feature_points.push_back(Point2f(mass_center_bottom.x, mass_center_bottom.y + difference));
+	//imshow("top", std::get<0>(splitted_img));
+	//imshow("bottom", std::get<1>(splitted_img));
 
-	std::tuple<Mat, Mat> splitted_img_top = splitImage(matTop, mass_center_top, true);
-	Mat matTopTop = std::get<0>(splitted_img_top);
-	Mat matTopBottom = std::get<1>(splitted_img_top);
-	Point2f mass_center_top_top = massCenterSimple(matTopTop);
-	Point2f mass_center_top_bottom = massCenterSimple(matTopBottom);
-	mass_center_top_bottom.y += matTopTop.rows;
+
+	std::tuple<Mat, Mat> splitted_img_top = splitImage(std::get<0>(splitted_img), mass_center_top, true);
+	Point2f mass_center_top_top = massCenterSimple(std::get<0>(splitted_img_top));
+	Point2f mass_center_top_bottom = massCenterSimple(std::get<1>(splitted_img_top));
+	int difference2 = std::get<0>(splitted_img_top).rows;
+	mass_center_top_bottom.y += difference2;
 	feature_points.push_back(mass_center_top_top);
 	feature_points.push_back(mass_center_top_bottom);
-	//imshow("top_top", matTopTop);
-	//imshow("top_bottom", matTopBottom);
+	//imshow("top_top", std::get<0>(splitted_img_top));
+	//imshow("top_bottom", std::get<1>(splitted_img_top));
 
-	std::tuple<Mat, Mat> splitted_img_bottom = splitImage(matBottom, mass_center_bottom, true);
-	Mat matBottomTop = std::get<0>(splitted_img_bottom);
-	Mat matBottomBottom = std::get<1>(splitted_img_bottom);
-	Point2f mass_center_bottom_top = massCenterSimple(matBottomTop);
-	Point2f mass_center_bottom_bottom = massCenterSimple(matBottomBottom);
-	mass_center_bottom_top.y += matTop.rows;
-	mass_center_bottom_bottom.y += matTop.rows + matBottomTop.rows;
+	std::tuple<Mat, Mat> splitted_img_bottom = splitImage(std::get<1>(splitted_img), mass_center_bottom, true);
+	Point2f mass_center_bottom_top = massCenterSimple(std::get<0>(splitted_img_bottom));
+	Point2f mass_center_bottom_bottom = massCenterSimple(std::get<1>(splitted_img_bottom));
+	int difference3 = difference + std::get<0>(splitted_img_bottom).rows;
+	mass_center_bottom_bottom.y += difference3;
 	feature_points.push_back(mass_center_bottom_top);
 	feature_points.push_back(mass_center_bottom_bottom);
-	//imshow("bottom_top", matBottomTop);
-	//imshow("bottom_bottom", matBottomBottom);
+	//imshow("bottom_top", std::get<0>(splitted_img_bottom));
+	//imshow("bottom_bottom", std::get<1>(splitted_img_bottom));
 
 	return feature_points;
 }
@@ -385,7 +380,6 @@ std::vector<Point2f> splittingCoordHorizontal(Mat& image, Point2f init_mass_cent
 std::vector<Point2f> splittingCoordVertical(Mat& image, Point2f init_mass_center, DataCSV data)
 {
 	std::vector<Point2f> feature_points;
-
 	std::tuple<Mat, Mat> splitted_img = splitImage(image, init_mass_center, false);
 	Mat matLeft= std::get<0>(splitted_img);
 	Mat matRight = std::get<1>(splitted_img);
@@ -426,10 +420,10 @@ std::vector<Point2f> splittingCoordVertical(Mat& image, Point2f init_mass_center
 std::vector<Point2f> featureExtraction(Mat& image, DataCSV data)
 {
 	std::vector<Point2f> feature_points;
-	std::vector<Point2f> horizontal_feature_points = splittingCoordHorizontal(image, massCenterSimple(image));
-	std::vector<Point2f> vertical_feature_points = splittingCoordVertical(image, massCenterSimple(image), data);
-	feature_points.insert(feature_points.begin(), horizontal_feature_points.begin(), horizontal_feature_points.end());
-	feature_points.insert(feature_points.end(), vertical_feature_points.begin(), vertical_feature_points.end());
+	std::vector<Point2f> left_feature_points = splittingCoordHorizontal(image, massCenterSimple(image));
+	std::vector<Point2f> right_feature_points = splittingCoordVertical(image, massCenterSimple(image), data);
+	feature_points.insert(feature_points.begin(), left_feature_points.begin(), left_feature_points.end());
+	feature_points.insert(feature_points.end(), right_feature_points.begin(), right_feature_points.end());
 	return feature_points;
 }
 
@@ -450,14 +444,9 @@ void drawSignature(Mat& image, DataCSV& data)
 
 void drawFeaturePoints(Mat& image, std::vector<Point2f> feature_extraction_points)
 {
-	int count = 0;
 	for (Point2f feature_point : feature_extraction_points)
 	{
-		if(count >= 6)//draw feature points from vertical clipping
-			circle(image, feature_point, 5, Scalar(200, 200, 200), FILLED);
-		else//draw feature points from horizontal clipping
-			circle(image, feature_point, 5, Scalar(100, 100, 100), FILLED);
-		count++;
+		circle(image, feature_point, 5, Scalar(125, 125, 125), FILLED);
 	}
 }
 
@@ -519,7 +508,7 @@ void signatureFeatureExtraction(char* fname) {
 	// Draw the signature centered
 	drawSignature(img, points);
 	std::vector<Point2f> feature_extraction_points = featureExtraction(img, points);
-	std::cout << " << Feature points: >>\n";
+	std::cout << feature_extraction_points.size() << std::endl;
 	for (Point2f feature_point : feature_extraction_points)
 	{
 		std::cout << feature_point.x << " " << feature_point.y << std::endl;
@@ -580,6 +569,37 @@ void testCreateTestDataSet() {
 	}
 }
 
+std::vector<std::string> matching_table = { "Naggy",  "Kovues", "Toth", "Szabo", "Honot", "Varga", "Kiv", "Molnar", "Wemeth", "Fwba", "Balogh", "Pepp", "Taracs", "Fahasz", "Lakatos", "Meszavos", "Olah", "Simon", "Hm", "Fehete"};
+
+void classifySignature(char* fname)
+{
+	DataCSV points = readCSV(fname);
+	Mat_<uchar> img = getCenteredWindow(points);
+
+	// Draw the signature centered
+	drawSignature(img, points);
+	std::vector<Point2f> feature_extraction_points = featureExtraction(img, points);
+	for (Point2f feature_extraction_point : feature_extraction_points)
+		std::cout << feature_extraction_point.x << " " << feature_extraction_point.y << std::endl;
+	drawFeaturePoints(img, feature_extraction_points);
+	std::vector<DataPoint> dataset;
+	int label = knn_classify(dataset, feature_extraction_points, 3);
+	std::cout << "Signature belongs to: " << matching_table[label] << std::endl;
+	imshow("Signature with feature extraction points", img);
+	waitKey(0);
+}
+
+void testClassifySignature()
+{
+	char fname[MAX_PATH];
+	while (openFileDlg(fname))
+	{
+		classifySignature(fname);
+	}
+}
+
+
+
 //------------------------------------------------------------------M A I N-------------------------------------------------------------------------
 
 int main()
@@ -599,6 +619,7 @@ int main()
 		printf(" 4 - Show signature\n");
 		printf(" 5 - Show signature + feature extraction\n");
 		printf(" 6 - Add user to data set\n");
+		printf(" 7 - Classify signature\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
 		scanf("%d", &op);
@@ -621,6 +642,9 @@ int main()
 				break;
 			case 6:
 				testCreateTestDataSet();
+				break;
+			case 7:
+				testClassifySignature();
 				break;
 		}
 	}
