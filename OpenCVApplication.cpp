@@ -100,6 +100,10 @@ double euclideanDistance(const Point2f& a, const Point2f& b) {
 	return sqrt(distance);
 }
 
+bool comparePairs(const std::pair<double, int>& a, const std::pair<double, int>& b) {
+	return a.first < b.first;
+}
+
 // k = nr of neighbours
 int knn_classify(const std::vector<DataPoint>& dataset, const std::vector<Point2f>& inputs, int k) {
 	std::vector<int> predictedLabels;
@@ -109,11 +113,15 @@ int knn_classify(const std::vector<DataPoint>& dataset, const std::vector<Point2
 			double distance = euclideanDistance(dataset[i].coord, inputs[j]);
 			distances.emplace_back(distance, dataset[i].label);
 		}
-		sort(distances.begin(), distances.end());
+		sort(distances.begin(), distances.end(), comparePairs);
+		for (const auto& p : distances) {
+			std::cout << "(" << p.first << ", " << p.second << ")" << " ";
+		}
+		std::cout << "Done" << std::endl;
 		std::vector<int> counts(dataset.size());
 		for (int i = 0; i < k; ++i) {
 			int label = distances[i].second;
-			counts[label-1]++;
+			counts[label]++;
 		}
 		int maxCount = 0;
 		int maxLabel = -1;
@@ -234,12 +242,6 @@ std::vector<DataPoint> readDataSetPoint(char* file_name)
 
 	file.close(); // Close the file
 	return dataPoints;
-}
-
-int getEuclidianDistance(cv::Point pointStart, cv::Point pointEnd)
-{
-	int distance = sqrt((pointEnd.x - pointStart.x) * (pointEnd.x - pointStart.x) + (pointEnd.y - pointStart.y) * (pointEnd.y - pointStart.y));
-	return distance;
 }
 
 std::tuple<Mat, Mat> splitImage(Mat& image, cv::Point split_coord, bool isHorizontal)
@@ -468,14 +470,14 @@ std::vector<Point2f> featureExtraction(Mat& image, DataCSV data)
 
 void drawSignature(Mat& image, DataCSV& data)
 {
-	int treshhold = 150;
+	int treshhold = 150.0;
 	for (int i = 0;i < data.number_of_rows-1; i++)
 	{
-		cv::Point pointStart(data.rows.at(i).x, data.rows.at(i).y);
-		cv::Point pointEnd(data.rows.at(i+1).x, data.rows.at(i+1).y);
+		cv::Point2f pointStart(data.rows.at(i).x, data.rows.at(i).y);
+		cv::Point2f pointEnd(data.rows.at(i+1).x, data.rows.at(i+1).y);
 		//std::cout << pointStart.x << " " << pointStart.y << " " << pointEnd.x << " " << pointEnd.y << std::endl;
 		//circle(image, pointStart, 5, Scalar(255, 255, 255), FILLED);
-		if(getEuclidianDistance(pointStart, pointEnd) < treshhold)
+		if(euclideanDistance(pointStart, pointEnd) < treshhold)
 			line(image, pointStart, pointEnd, Scalar(255, 255, 255), 3);
 	}
 	
@@ -580,9 +582,11 @@ void classifySignature(char* fname)
 	for (Point2f feature_extraction_point : feature_extraction_points)
 		std::cout << feature_extraction_point.x << " " << feature_extraction_point.y << std::endl;
 	drawFeaturePoints(img, feature_extraction_points);
-	std::vector<DataPoint> dataset = readDataSetPoint("DataSetFirst20.csv");
-	int label = knn_classify(dataset, feature_extraction_points, 3);
-	std::cout << "Signature belongs to: " << label << " " << matching_table[label - 1] << std::endl;
+	std::vector<DataPoint> dataset = readDataSetPoint("D:\\ANUL3\\PI\\1.1.1.1.1.1.Proiect\\OpenCVApplication-VS2022_OCV460_basic\\DataSetFirst20.csv");
+	int label = knn_classify(dataset, feature_extraction_points, 2);
+	std::cout << "Signature label: " << label << std::endl;
+	if(label>=0 && label<20)
+		std::cout << "Signature belongs to: "<< matching_table[label - 1] << std::endl;
 	imshow("Signature with feature extraction points", img);
 	waitKey(0);
 }
