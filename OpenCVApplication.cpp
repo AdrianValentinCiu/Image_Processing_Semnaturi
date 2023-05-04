@@ -110,15 +110,19 @@ double euclideanDistance(const std::vector<double>& a, const std::vector<double>
 
 // k = nr of neighbours
 int knn_classify(const std::vector<DataPoint> dataset, const std::vector<double> input, int k) {
+
+
 	std::vector<std::pair<double, int>> distances;
 	for (size_t i = 0; i < dataset.size(); ++i) {
 		double distance = euclideanDistance(dataset[i].coord, input);
 		distances.emplace_back(distance, dataset[i].label);
 	}
 	sort(distances.begin(), distances.end());
+	/*
 	for (std::pair<double, int> distance : distances) {
 		std::cout << "("<< distance.first << ", " << distance.second << ")  ";
 	}
+	*/
 	std::cout << std::endl;
 	std::vector<int> counts(dataset.size());
 	for (int i = 0; i < k; ++i) {
@@ -583,6 +587,23 @@ void normalizeCoordinates(std::vector<Point2f>& points)
 
 void classifySignature(char* fname)
 {
+	int actualUser = 0;
+	int i = 0;
+	for (i = 0; fname[i]; i++) {}
+	int positionsBack = 6;
+	if (fname[i - positionsBack] != '_') {
+		positionsBack++;
+	}
+	positionsBack += 2;
+	if (!(fname[i - positionsBack] >= '0' && fname[i - positionsBack] <= '9')) {
+		positionsBack--;
+	}
+	positionsBack += 7;
+	if (fname[i - positionsBack] >= '0' && fname[i - positionsBack] <= '9') {
+		actualUser = (fname[i - positionsBack] - '0') * 10;
+	}
+	actualUser += fname[i - (positionsBack - 1)] - '0';
+	
 	DataCSV points = readCSV(fname);
 	//fname
 	Mat_<uchar> img = getCenteredWindow(points);
@@ -600,12 +621,14 @@ void classifySignature(char* fname)
 	}
 	drawFeaturePoints(img, feature_extraction_points);
 	std::vector<DataPoint> dataset = readDataSetPoint("D:\\ANUL3\\PI\\1.1.1.1.1.1.Proiect\\OpenCVApplication-VS2022_OCV460_basic\\DataSet.csv");
+	/*
 	for (double point : feature_extraction_points_double) {
 		std::cout << point << "  ";
 	}
+	*/
 	std::cout << std::endl;
 	int label = knn_classify(dataset, feature_extraction_points_double, 23);
-	std::cout << fname << std::endl;
+	std::cout << "Opening USER " << actualUser << std::endl;
 	std::cout << "USER" << label << std::endl;
 	if(label>=0 && label<20)
 		std::cout << "Signature belongs to: "<< matching_table[label - 1] << std::endl;
