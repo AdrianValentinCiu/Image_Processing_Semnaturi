@@ -4,7 +4,6 @@
 #include "common.h"
 #include <opencv2/core/utils/logger.hpp>
 #include <fstream>
-#include <limits>
 #include "OpenCVApplication.h"
 
 wchar_t* projectPath;
@@ -86,7 +85,7 @@ typedef struct {
 }RowCSV;
 
 typedef struct {
-	Point2f coord;
+	std::vector<double> coord;
 	int label;
 } DataPoint;
 
@@ -95,52 +94,46 @@ typedef struct {
 	long number_of_rows;
 }DataCSV;
 
-double euclideanDistance(const Point2f& a, const Point2f& b) {
+double euclideanDistanceDrawSignature(const Point2f& a, const Point2f& b) {
 	double distance = 0.0;
 	distance += pow(a.x - b.x, 2) + pow(a.y - b.y, 2);
 	return sqrt(distance);
 }
 
-bool comparePairs(const std::pair<double, int>& a, const std::pair<double, int>& b) {
-	return a.first < b.first;
+double euclideanDistance(const std::vector<double>& a, const std::vector<double>& b) {
+	double distance = 0.0;
+	for (size_t i = 0; i < a.size(); ++i) {
+		distance += pow(a[i] - b[i], 2);
+	}
+	return sqrt(distance);
 }
 
 // k = nr of neighbours
-int knn_classify(const std::vector<DataPoint>& dataset, const std::vector<Point2f>& inputs, int k) {
-	std::vector<int> predictedLabels;
-	for (int j = 0; j < inputs.size(); j++) {
-		std::vector<std::pair<double, int>> distances;
-		for (int i = 0; i < dataset.size(); i++) {
-			double distance = euclideanDistance(dataset[i].coord, inputs[j]);
-			distances.emplace_back(distance, dataset[i].label);
-		}
-		sort(distances.begin(), distances.end(), comparePairs);
-		for (const auto& p : distances) {
-			std::cout << "(" << p.first << ", " << p.second << ")" << " ";
-		}
-		std::cout << "Done" << std::endl;
-		std::vector<int> counts(dataset.size());
-		for (int i = 0; i < k; ++i) {
-			int label = distances[i].second;
-			counts[label]++;
-		}
-		int maxCount = 0;
-		int maxLabel = -1;
-		for (int i = 0; i < dataset.size(); ++i) {
-			if (counts[i] > maxCount) {
-				maxCount = counts[i];
-				maxLabel = i;
-			}
-		}
-		predictedLabels.push_back(maxLabel);
+int knn_classify(const std::vector<DataPoint> dataset, const std::vector<double> input, int k) {
+
+
+	std::vector<std::pair<double, int>> distances;
+	for (size_t i = 0; i < dataset.size(); ++i) {
+		double distance = euclideanDistance(dataset[i].coord, input);
+		distances.emplace_back(distance, dataset[i].label);
 	}
-	// Return the most frequent label among the predictions
+	sort(distances.begin(), distances.end());
+	/*
+	for (std::pair<double, int> distance : distances) {
+		std::cout << "("<< distance.first << ", " << distance.second << ")  ";
+	}
+	*/
+	std::cout << std::endl;
+	std::vector<int> counts(dataset.size());
+	for (int i = 0; i < k; ++i) {
+		int label = distances[i].second;
+		counts[label]++;
+	}
 	int maxCount = 0;
 	int maxLabel = -1;
 	for (int i = 0; i < dataset.size(); ++i) {
-		int counter = count(predictedLabels.begin(), predictedLabels.end(), i);
-		if (counter > maxCount) {
-			maxCount = counter;
+		if (counts[i] > maxCount) {
+			maxCount = counts[i];
 			maxLabel = i;
 		}
 	}
@@ -222,16 +215,13 @@ std::vector<DataPoint> readDataSetPoint(char* file_name)
 	std::getline(file, line);//reading the first line with headers and ignoring it
 	while (std::getline(file, line)) {
 		std::stringstream ss(line);
-
-		// Parse each line
 		DataPoint data;
-		std::getline(ss, field, ',');//get x coord
-		data.coord.x = std::stod(field);
-		std::getline(ss, field, ',');//get y coord
-		data.coord.y = std::stod(field);
 		std::getline(ss, field, ',');//get label
-		data.label = std::stod(field);
-
+		data.label = std::stoi(field);
+		for (int i = 0; i < 24; i++) {
+			std::getline(ss, field, ',');//get coord
+			data.coord.push_back(std::stod(field));
+		}
 		dataPoints.push_back(data);
 	}
 
@@ -478,7 +468,7 @@ void drawSignature(Mat& image, DataCSV& data)
 		cv::Point2f pointEnd(data.rows.at(i+1).x, data.rows.at(i+1).y);
 		//std::cout << pointStart.x << " " << pointStart.y << " " << pointEnd.x << " " << pointEnd.y << std::endl;
 		//circle(image, pointStart, 5, Scalar(255, 255, 255), FILLED);
-		if(euclideanDistance(pointStart, pointEnd) < treshhold)
+		if(euclideanDistanceDrawSignature(pointStart, pointEnd) < treshhold)
 			line(image, pointStart, pointEnd, Scalar(255, 255, 255), 3);
 	}
 	
@@ -572,40 +562,11 @@ void testSignatureFeatureExtraction() {
 
 std::vector<std::string> matching_table = { "Naggy",  "Kovues", "Toth", "Szabo", "Honot", "Varga", "Kiv", "Molnar", "Wemeth", "Fwba", "Balogh", "Pepp", "Taracs", "Fahasz", "Lakatos", "Meszavos", "Olah", "Simon", "Hm", "Fehete"};
 
-void classifySignature(char* fname)
-{
-	DataCSV points = readCSV(fname);
-	Mat_<uchar> img = getCenteredWindow(points);
-
-	// Draw the signature centered
-	drawSignature(img, points);
-	std::vector<Point2f> feature_extraction_points = featureExtraction(img, points);
-	for (Point2f feature_extraction_point : feature_extraction_points)
-		std::cout << feature_extraction_point.x << " " << feature_extraction_point.y << std::endl;
-	drawFeaturePoints(img, feature_extraction_points);
-	std::vector<DataPoint> dataset = readDataSetPoint("D:\\ANUL3\\PI\\1.1.1.1.1.1.Proiect\\OpenCVApplication-VS2022_OCV460_basic\\DataSetFirst20.csv");
-	int label = knn_classify(dataset, feature_extraction_points, 2);
-	std::cout << "Signature label: " << label << std::endl;
-	if(label>=0 && label<20)
-		std::cout << "Signature belongs to: "<< matching_table[label - 1] << std::endl;
-	imshow("Signature with feature extraction points", img);
-	waitKey(0);
-}
-
-void testClassifySignature()
-{
-	char fname[MAX_PATH];
-	while (openFileDlg(fname))
-	{
-		classifySignature(fname);
-	}
-}
-
 void normalizeCoordinates(std::vector<Point2f>& points)
 {
 	float maxX = 0.0f;
 	float maxY = 0.0f;
-	for (Point2f actualPoint : points){
+	for (Point2f actualPoint : points) {
 		if (actualPoint.x > maxX) {
 			maxX = actualPoint.x;
 		}
@@ -620,6 +581,67 @@ void normalizeCoordinates(std::vector<Point2f>& points)
 	}
 	for (Point2f actualPoint : points) {
 		std::cout << actualPoint.x << ", " << actualPoint.y << std::endl;
+	}
+}
+
+
+void classifySignature(char* fname)
+{
+	int actualUser = 0;
+	int i = 0;
+	for (i = 0; fname[i]; i++) {}
+	int positionsBack = 6;
+	if (fname[i - positionsBack] != '_') {
+		positionsBack++;
+	}
+	positionsBack += 2;
+	if (!(fname[i - positionsBack] >= '0' && fname[i - positionsBack] <= '9')) {
+		positionsBack--;
+	}
+	positionsBack += 7;
+	if (fname[i - positionsBack] >= '0' && fname[i - positionsBack] <= '9') {
+		actualUser = (fname[i - positionsBack] - '0') * 10;
+	}
+	actualUser += fname[i - (positionsBack - 1)] - '0';
+	
+	DataCSV points = readCSV(fname);
+	//fname
+	Mat_<uchar> img = getCenteredWindow(points);
+
+	// Draw the signature centered
+	drawSignature(img, points);
+	std::vector<Point2f> feature_extraction_points = featureExtraction(img, points);
+	normalizeCoordinates(feature_extraction_points);
+	std::vector<double> feature_extraction_points_double;
+	for (Point2f feature_extraction_point : feature_extraction_points)
+	{
+		//std::cout << feature_extraction_point.x << " " << feature_extraction_point.y << std::endl;
+		feature_extraction_points_double.push_back(feature_extraction_point.x);
+		feature_extraction_points_double.push_back(feature_extraction_point.y);
+	}
+	drawFeaturePoints(img, feature_extraction_points);
+	std::vector<DataPoint> dataset = readDataSetPoint("D:\\ANUL3\\PI\\1.1.1.1.1.1.Proiect\\OpenCVApplication-VS2022_OCV460_basic\\DataSet.csv");
+	/*
+	for (double point : feature_extraction_points_double) {
+		std::cout << point << "  ";
+	}
+	*/
+	std::cout << std::endl;
+	int label = knn_classify(dataset, feature_extraction_points_double, 23);
+	std::cout << "Opening USER " << actualUser << std::endl;
+	std::cout << "USER" << label << std::endl;
+	if(label>=0 && label<20)
+		std::cout << "Signature belongs to: "<< matching_table[label - 1] << std::endl;
+	imshow("Signature with feature extraction points", img);
+	waitKey(0);
+}
+
+void testClassifySignature()
+{
+	char fname[MAX_PATH];
+	while (openFileDlg(fname))
+	{
+		classifySignature(fname);
 	}
 }
 
@@ -652,12 +674,17 @@ void buildDataSet() {
 		return;
 	char fname[MAX_PATH];
 	FileGetter fg(folderName, "csv");
-	int counter = 0;
+	int label = 0;
 	while (fg.getNextAbsFile(fname))
 	{
-		std::cout << fname << std::endl;
-		writeDataSet(fname, counter / 20 + 1);
-		counter++;
+		//std::cout << fname << std::endl;
+		if (fname[88] == '_') {
+			label = fname[87] - '0';
+		}
+		else {
+			label = (fname[87] - '0') * 10 + (fname[88] - '0');
+		}
+		writeDataSet(fname, label);
 		//Mat src;
 		//src = imread(fname);
 		//imshow(fg.getFoundFileName(), src);
@@ -690,28 +717,26 @@ int main()
 		scanf("%d", &op);
 		switch (op)
 		{
-			case 1:
-				testOpenImage();
-				break;
-			case 2:
-				testOpenImagesFld();
-				break;
-			case 3:
-				testColor2Gray();
-				break;
-			case 4:
-				testShowSignature();
-				break;
-			case 5:
-				testSignatureFeatureExtraction();
-				break;
-			case 6:
-				testClassifySignature();
-				break;
+		case 1:
+			testOpenImage();
+			break;
+		case 2:
+			testOpenImagesFld();
+			break;
+		case 3:
+			testColor2Gray();
+			break;
+		case 4:
+			testShowSignature();
+			break;
+		case 5:
+			testSignatureFeatureExtraction();
+			break;
+		case 6:
+			testClassifySignature();
+			break;
 		}
-	}
-	while (op!=0);
-	//writeDataSet();
+	} while (op != 0);
 	//buildDataSet();
 	return 0;
 }
