@@ -4,7 +4,6 @@
 #include "common.h"
 #include <opencv2/core/utils/logger.hpp>
 #include <fstream>
-#include <limits>
 #include "OpenCVApplication.h"
 
 wchar_t* projectPath;
@@ -85,8 +84,8 @@ typedef struct {
 	double accelz;
 }RowCSV;
 
-typedef struct {
-	Point2f coord;
+typedef struct{
+	std::vector<double> coord;
 	int label;
 } DataPoint;
 
@@ -95,52 +94,42 @@ typedef struct {
 	long number_of_rows;
 }DataCSV;
 
-double euclideanDistance(const Point2f& a, const Point2f& b) {
+double euclideanDist(const Point2f& a, const Point2f& b) {
 	double distance = 0.0;
 	distance += pow(a.x - b.x, 2) + pow(a.y - b.y, 2);
+	return sqrt(distance);
+}
+
+
+double euclideanDistance(const std::vector<double>& a, const std::vector<double>& b) {
+	double distance = 0.0;
+	for (size_t i = 0; i < a.size(); ++i) {
+		distance += pow(a[i] - b[i], 2);
+	}
 	return sqrt(distance);
 }
 
 bool comparePairs(const std::pair<double, int>& a, const std::pair<double, int>& b) {
 	return a.first < b.first;
 }
-
 // k = nr of neighbours
-int knn_classify(const std::vector<DataPoint>& dataset, const std::vector<Point2f>& inputs, int k) {
-	std::vector<int> predictedLabels;
-	for (int j = 0; j < inputs.size(); j++) {
-		std::vector<std::pair<double, int>> distances;
-		for (int i = 0; i < dataset.size(); i++) {
-			double distance = euclideanDistance(dataset[i].coord, inputs[j]);
-			distances.emplace_back(distance, dataset[i].label);
-		}
-		sort(distances.begin(), distances.end(), comparePairs);
-		for (const auto& p : distances) {
-			std::cout << "(" << p.first << ", " << p.second << ")" << " ";
-		}
-		std::cout << "Done" << std::endl;
-		std::vector<int> counts(dataset.size());
-		for (int i = 0; i < k; ++i) {
-			int label = distances[i].second;
-			counts[label]++;
-		}
-		int maxCount = 0;
-		int maxLabel = -1;
-		for (int i = 0; i < dataset.size(); ++i) {
-			if (counts[i] > maxCount) {
-				maxCount = counts[i];
-				maxLabel = i;
-			}
-		}
-		predictedLabels.push_back(maxLabel);
+int knn_classify(const std::vector<DataPoint> dataset, const std::vector<double> input, int k) {
+	std::vector<std::pair<double, int>> distances;
+	for (size_t i = 0; i < dataset.size(); ++i) {
+		double distance = euclideanDistance(dataset[i].coord, input);
+		distances.emplace_back(distance, dataset[i].label);
 	}
-	// Return the most frequent label among the predictions
+	sort(distances.begin(), distances.end());
+	std::vector<int> counts(dataset.size());
+	for (int i = 0; i < k; ++i) {
+		int label = distances[i].second;
+		counts[label]++;
+	}
 	int maxCount = 0;
 	int maxLabel = -1;
 	for (int i = 0; i < dataset.size(); ++i) {
-		int counter = count(predictedLabels.begin(), predictedLabels.end(), i);
-		if (counter > maxCount) {
-			maxCount = counter;
+		if (counts[i] > maxCount) {
+			maxCount = counts[i];
 			maxLabel = i;
 		}
 	}
@@ -222,17 +211,14 @@ std::vector<DataPoint> readDataSetPoint(char* file_name)
 	std::getline(file, line);//reading the first line with headers and ignoring it
 	while (std::getline(file, line)) {
 		std::stringstream ss(line);
-
-		// Parse each line
 		DataPoint data;
-		std::getline(ss, field, ',');//get x coord
-		data.coord.x = std::stod(field);
-		std::getline(ss, field, ',');//get y coord
-		data.coord.y = std::stod(field);
 		std::getline(ss, field, ',');//get label
 		data.label = std::stod(field);
-
-		dataPoints.push_back(data);
+		for (int i = 0; i < 24; i++) {
+			std::getline(ss, field, ',');//get coord
+			data.coord[i] = std::stod(field);
+		}
+		dataPoints.push_back(data);		
 	}
 
 	// Print the data to the console
@@ -478,7 +464,7 @@ void drawSignature(Mat& image, DataCSV& data)
 		cv::Point2f pointEnd(data.rows.at(i+1).x, data.rows.at(i+1).y);
 		//std::cout << pointStart.x << " " << pointStart.y << " " << pointEnd.x << " " << pointEnd.y << std::endl;
 		//circle(image, pointStart, 5, Scalar(255, 255, 255), FILLED);
-		if(euclideanDistance(pointStart, pointEnd) < treshhold)
+		if(euclideanDist(pointStart, pointEnd) < treshhold)
 			line(image, pointStart, pointEnd, Scalar(255, 255, 255), 3);
 	}
 	
@@ -495,7 +481,7 @@ void drawFeaturePoints(Mat& image, std::vector<Point2f> feature_extraction_point
 Mat_<uchar> getCenteredWindow(DataCSV& points)
 {
 	// Create an image to draw the points on
-	double minX = FLT_MAX, minY = FLT_MAX, maxX = 0.0, maxY = 0.0;
+	int minX = MAXINT, minY = MAXINT, maxX = 0, maxY = 0;
 	for (int i = 0; i < points.number_of_rows - 1; i++)
 	{
 		if (minX > points.rows.at(i).x)
@@ -574,6 +560,7 @@ std::vector<std::string> matching_table = { "Naggy",  "Kovues", "Toth", "Szabo",
 
 void classifySignature(char* fname)
 {
+/*
 	DataCSV points = readCSV(fname);
 	Mat_<uchar> img = getCenteredWindow(points);
 
@@ -590,6 +577,7 @@ void classifySignature(char* fname)
 		std::cout << "Signature belongs to: "<< matching_table[label - 1] << std::endl;
 	imshow("Signature with feature extraction points", img);
 	waitKey(0);
+	*/
 }
 
 void testClassifySignature()
@@ -601,68 +589,33 @@ void testClassifySignature()
 	}
 }
 
-void normalizeCoordinates(std::vector<Point2f>& points)
-{
-	float maxX = 0.0f;
-	float maxY = 0.0f;
-	for (Point2f actualPoint : points){
-		if (actualPoint.x > maxX) {
-			maxX = actualPoint.x;
-		}
-		if (actualPoint.y > maxY) {
-			maxY = actualPoint.y;
-		}
-	}
-	std::cout << maxX << ", " << maxY << std::endl;
-	for (Point2f& actualPoint : points) {
-		actualPoint.x /= maxX;
-		actualPoint.y /= maxY;
-	}
-	for (Point2f actualPoint : points) {
-		std::cout << actualPoint.x << ", " << actualPoint.y << std::endl;
-	}
-}
-
 //a nu se deschide fisierul .csv pana nu se termina de scris toate datele
-void writeDataSet(char* fname, int label) {
-	DataCSV points = readCSV(fname);
-	Mat_<uchar> img = getCenteredWindow(points);
-	// Draw the signature centered
-	drawSignature(img, points);
-	std::vector<Point2f> feature_extraction_points = featureExtraction(img, points);
-	normalizeCoordinates(feature_extraction_points);
-
-	//WRITE IN CSV FILE
-	std::fstream fout;
-	fout.open("C:/Users/stef_/Desktop/Cursuri/PI/Project/OpenCVApplication/Output.csv", std::ios::out | std::ios::app);
-	// Insert the data to file 
-	fout << label << ", ";
-	for (Point2f feature_point : feature_extraction_points)
-	{
-		fout << feature_point.x << ", " << feature_point.y << ", ";
-	}
-	fout << "\n";
-	// close the file
-	fout.close();
-}
-
-void buildDataSet() {
-	char folderName[MAX_PATH];
-	if (openFolderDlg(folderName) == 0)
-		return;
+void writeDataSet() {
 	char fname[MAX_PATH];
-	FileGetter fg(folderName, "csv");
-	int counter = 0;
-	while (fg.getNextAbsFile(fname))
+	int label = 1;
+	while (openFileDlg(fname))
 	{
-		std::cout << fname << std::endl;
-		writeDataSet(fname, counter / 20 + 1);
-		counter++;
-		//Mat src;
-		//src = imread(fname);
-		//imshow(fg.getFoundFileName(), src);
-		//if (waitKey() == 27) //ESC pressed
-		//	break;
+		DataCSV points = readCSV(fname);
+		Mat_<uchar> img = getCenteredWindow(points);
+		// Draw the signature centered
+		drawSignature(img, points);
+		std::vector<Point2f> feature_extraction_points = featureExtraction(img, points);
+
+
+		//WRITE IN CSV FILE
+		std::fstream fout;
+		fout.open("../output.csv", std::ios::out | std::ios::app);
+		// Insert the data to file 
+		for (Point2f feature_point : feature_extraction_points)
+		{
+			fout << feature_point.x << ", "
+				<< feature_point.y << ", "
+				<< label << ", "
+				<< "\n";
+		}
+		// close the file
+		fout.close();
+		label++;
 	}
 }
 
@@ -670,9 +623,24 @@ void buildDataSet() {
 
 int main()
 {
+	/*
+	std::vector<DataPoint> dataset = {
+		{{1.0, 2.0, 3.0}, 0},
+		{{2.0, 1.0, 1.0}, 0},
+		{{4.0, 5.0, 5.0}, 1},
+		{{20.0, 21.0, 22.0}, 1},
+		{ {21.0, 22.0, 23.0}, 2},
+		{{25.0, 25.0, 25.0}, 3},
+		{{26.0, 26.0, 26.0}, 3}
+	};
+	std::vector<double> input = { 30.0, 30.0, 30.0};
+	int k = 3;
+	int predictedLabel = knn_classify(dataset, input, k);
+	std::cout << "Predicted label: " << predictedLabel << std::endl;
+	
 	cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_FATAL);
 	projectPath = _wgetcwd(0, 0);
-
+	*/
 	int op;
 	do
 	{
@@ -712,6 +680,6 @@ int main()
 	}
 	while (op!=0);
 	//writeDataSet();
-	//buildDataSet();
+
 	return 0;
 }
