@@ -116,6 +116,10 @@ int knn_classify(const std::vector<DataPoint> dataset, const std::vector<double>
 		distances.emplace_back(distance, dataset[i].label);
 	}
 	sort(distances.begin(), distances.end());
+	for (std::pair<double, int> distance : distances) {
+		std::cout << "("<< distance.first << ", " << distance.second << ")  ";
+	}
+	std::cout << std::endl;
 	std::vector<int> counts(dataset.size());
 	for (int i = 0; i < k; ++i) {
 		int label = distances[i].second;
@@ -209,10 +213,10 @@ std::vector<DataPoint> readDataSetPoint(char* file_name)
 		std::stringstream ss(line);
 		DataPoint data;
 		std::getline(ss, field, ',');//get label
-		data.label = std::stod(field);
+		data.label = std::stoi(field);
 		for (int i = 0; i < 24; i++) {
 			std::getline(ss, field, ',');//get coord
-			data.coord[i] = std::stod(field);
+			data.coord.push_back(std::stod(field));
 		}
 		dataPoints.push_back(data);
 	}
@@ -580,6 +584,7 @@ void normalizeCoordinates(std::vector<Point2f>& points)
 void classifySignature(char* fname)
 {
 	DataCSV points = readCSV(fname);
+	//fname
 	Mat_<uchar> img = getCenteredWindow(points);
 
 	// Draw the signature centered
@@ -589,14 +594,19 @@ void classifySignature(char* fname)
 	std::vector<double> feature_extraction_points_double;
 	for (Point2f feature_extraction_point : feature_extraction_points)
 	{
-		std::cout << feature_extraction_point.x << " " << feature_extraction_point.y << std::endl;
+		//std::cout << feature_extraction_point.x << " " << feature_extraction_point.y << std::endl;
 		feature_extraction_points_double.push_back(feature_extraction_point.x);
 		feature_extraction_points_double.push_back(feature_extraction_point.y);
 	}
 	drawFeaturePoints(img, feature_extraction_points);
-	std::vector<DataPoint> dataset = readDataSetPoint("D:\\ANUL3\\PI\\1.1.1.1.1.1.Proiect\\OpenCVApplication-VS2022_OCV460_basic\\DataSetFirst20.csv");
-	int label = knn_classify(dataset, feature_extraction_points_double, 2);
-	std::cout << "Signature label: " << label << std::endl;
+	std::vector<DataPoint> dataset = readDataSetPoint("D:\\ANUL3\\PI\\1.1.1.1.1.1.Proiect\\OpenCVApplication-VS2022_OCV460_basic\\DataSet.csv");
+	for (double point : feature_extraction_points_double) {
+		std::cout << point << "  ";
+	}
+	std::cout << std::endl;
+	int label = knn_classify(dataset, feature_extraction_points_double, 23);
+	std::cout << fname << std::endl;
+	std::cout << "USER" << label << std::endl;
 	if(label>=0 && label<20)
 		std::cout << "Signature belongs to: "<< matching_table[label - 1] << std::endl;
 	imshow("Signature with feature extraction points", img);
@@ -641,12 +651,17 @@ void buildDataSet() {
 		return;
 	char fname[MAX_PATH];
 	FileGetter fg(folderName, "csv");
-	int counter = 0;
+	int label = 0;
 	while (fg.getNextAbsFile(fname))
 	{
-		std::cout << fname << std::endl;
-		writeDataSet(fname, counter / 20 + 1);
-		counter++;
+		//std::cout << fname << std::endl;
+		if (fname[88] == '_') {
+			label = fname[87] - '0';
+		}
+		else {
+			label = (fname[87] - '0') * 10 + (fname[88] - '0');
+		}
+		writeDataSet(fname, label);
 		//Mat src;
 		//src = imread(fname);
 		//imshow(fg.getFoundFileName(), src);
@@ -679,28 +694,26 @@ int main()
 		scanf("%d", &op);
 		switch (op)
 		{
-			case 1:
-				testOpenImage();
-				break;
-			case 2:
-				testOpenImagesFld();
-				break;
-			case 3:
-				testColor2Gray();
-				break;
-			case 4:
-				testShowSignature();
-				break;
-			case 5:
-				testSignatureFeatureExtraction();
-				break;
-			case 6:
-				testClassifySignature();
-				break;
+		case 1:
+			testOpenImage();
+			break;
+		case 2:
+			testOpenImagesFld();
+			break;
+		case 3:
+			testColor2Gray();
+			break;
+		case 4:
+			testShowSignature();
+			break;
+		case 5:
+			testSignatureFeatureExtraction();
+			break;
+		case 6:
+			testClassifySignature();
+			break;
 		}
-	}
-	while (op!=0);
-	//writeDataSet();
+	} while (op != 0);
 	//buildDataSet();
 	return 0;
 }
