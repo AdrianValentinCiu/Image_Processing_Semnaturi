@@ -627,7 +627,7 @@ void classifySignature(char* fname)
 	}
 	*/
 	std::cout << std::endl;
-	int label = knn_classify(dataset, feature_extraction_points_double, 23);
+	int label = knn_classify(dataset, feature_extraction_points_double, 117);
 	std::cout << "Opening USER " << actualUser << std::endl;
 	std::cout << "USER" << label << std::endl;
 	if(label>=0 && label<20)
