@@ -100,21 +100,46 @@ double euclideanDistanceDrawSignature(const Point2f& a, const Point2f& b) {
 	return sqrt(distance);
 }
 
+double cosineSimilarity(const std::vector<double>& a, const std::vector<double>& b) {
+	if (a.size() != b.size() || a.empty() || b.empty()) {
+		return 0.0;
+	}
+
+	double dotProduct = 0.0;
+	double normA = 0.0;
+	double normB = 0.0;
+
+	for (int i = 0; i < a.size(); i++) {
+		dotProduct += a[i] * b[i];
+		normA += a[i] * a[i];
+		normB += b[i] * b[i];
+	}
+
+	normA = std::sqrt(normA);
+	normB = std::sqrt(normB);
+
+	return dotProduct / (normA * normB);
+}
+
 double euclideanDistance(const std::vector<double>& a, const std::vector<double>& b) {
 	double distance = 0.0;
-	for (size_t i = 0; i < a.size(); ++i) {
+	for (int i = 0; i < a.size(); ++i) {
 		distance += pow(a[i] - b[i], 2);
 	}
 	return sqrt(distance);
 }
 
 // k = nr of neighbours
-int knn_classify(const std::vector<DataPoint> dataset, const std::vector<double> input, int k) {
+int knn_classify(const std::vector<DataPoint> dataset, const std::vector<double> input, int k, bool cosineHeuristic) {
 
 
 	std::vector<std::pair<double, int>> distances;
 	for (size_t i = 0; i < dataset.size(); ++i) {
-		double distance = euclideanDistance(dataset[i].coord, input);
+		double distance;
+		if(cosineHeuristic)
+			distance = cosineSimilarity(dataset[i].coord, input);
+		else
+			distance = euclideanDistance(dataset[i].coord, input);
 		distances.emplace_back(distance, dataset[i].label);
 	}
 	sort(distances.begin(), distances.end());
@@ -585,7 +610,7 @@ void normalizeCoordinates(std::vector<Point2f>& points)
 }
 
 
-void classifySignature(char* fname)
+void classifySignature(char* fname, bool cosineHeuristic)
 {
 	int actualUser = 0;
 	int i = 0;
@@ -627,7 +652,7 @@ void classifySignature(char* fname)
 	}
 	*/
 	std::cout << std::endl;
-	int label = knn_classify(dataset, feature_extraction_points_double, 117);
+	int label = knn_classify(dataset, feature_extraction_points_double, 117, cosineHeuristic);
 	std::cout << "Opening USER " << actualUser << std::endl;
 	std::cout << "USER" << label << std::endl;
 	if(label>=0 && label<20)
@@ -636,12 +661,12 @@ void classifySignature(char* fname)
 	waitKey(0);
 }
 
-void testClassifySignature()
+void testClassifySignature(bool cosineHeuristic)
 {
 	char fname[MAX_PATH];
 	while (openFileDlg(fname))
 	{
-		classifySignature(fname);
+		classifySignature(fname, cosineHeuristic);
 	}
 }
 
@@ -711,7 +736,8 @@ int main()
 		printf(" 3 - Color to Gray\n");
 		printf(" 4 - Show signature\n");
 		printf(" 5 - Show signature + feature extraction\n");
-		printf(" 6 - Classify signature\n");
+		printf(" 6 - Classify signature Euclidina Distance Heuristic\n");
+		printf(" 7 - Classify signature Cosine Similarity Heuristic\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
 		scanf("%d", &op);
@@ -733,7 +759,10 @@ int main()
 			testSignatureFeatureExtraction();
 			break;
 		case 6:
-			testClassifySignature();
+			testClassifySignature(false);
+			break;
+		case 7:
+			testClassifySignature(true);
 			break;
 		}
 	} while (op != 0);
