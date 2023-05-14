@@ -300,68 +300,6 @@ Point2f massCenterSimple(Mat_<uchar> image)
 	return center;
 }
 
-//this function cuts the rows and columns (from the beginning and the end of the image) that doesn't have any colored pixel. It fits the signature in a window
-//USELESS FUNCTION
-void cropImage(Mat& image)
-{
-	int rows_to_delete_from_start = 0;
-	int rows_to_delete_from_end = 0;
-	int cols_to_delete_from_start = 0;
-	int cols_to_delete_from_end = 0;
-
-	boolean ok = false;
-	for (int i = 0; i < image.rows && ok == 0; i++) {
-		for (int j = 0; j < image.cols && ok == 0; j++) {
-			if (image.at<uchar>(i, j) > 0) {
-				rows_to_delete_from_start = i;
-				ok = 1;
-			}
-		}
-	}
-	if (ok == 0) {
-		image = NULL;
-	}
-	ok = false;
-	for (int i = image.rows - 1; i >= 0 && ok == 0; i--) {
-		for (int j = 0; j < image.cols && ok == 0; j++) {
-			if (image.at<uchar>(i, j) > 0) {
-				rows_to_delete_from_end = image.rows - i - 1;
-				ok = 1;
-			}
-		}
-	}
-	ok = false;
-	for (int j = 0; j < image.cols && ok == 0; j++) {
-		for (int i = 0; i < image.rows && ok == 0; i++) {
-			if (image.at<uchar>(i, j) > 0) {
-				cols_to_delete_from_start = j;
-				ok = 1;
-			}
-		}
-	}
-	ok = false;
-	for (int j = image.cols - 1; j >= 0 && ok == 0; j--) {
-		for (int i = 0; i < image.rows && ok == 0; i++) {
-			if (image.at<uchar>(i, j) > 0) {
-				cols_to_delete_from_end = image.cols - j - 1;
-				ok = 1;
-				break;
-			}
-		}
-	}
-
-	// Compute the new size of the image
-	int new_height = image.rows - rows_to_delete_from_start - rows_to_delete_from_end;
-	int new_width = image.cols - cols_to_delete_from_start - cols_to_delete_from_end;
-
-	// Crop the image
-	Mat cropped_image = image.rowRange(rows_to_delete_from_start, image.rows - rows_to_delete_from_end).colRange(cols_to_delete_from_start, image.cols - cols_to_delete_from_end);
-
-	// Resize the cropped image to the desired size
-	resize(cropped_image, cropped_image, Size(new_width, new_height));
-	image = cropped_image;
-}
-
 std::vector<Point2f> splittingCoordHorizontal(Mat& image, Point2f init_mass_center)
 {
 	std::vector<Point2f> feature_points;
@@ -480,10 +418,10 @@ void drawFeaturePoints(Mat& image, std::vector<Point2f> feature_extraction_point
 }
 
 //returns a black image where the signature can fit centered. It also modifies the signature coordinates to fit in the new image.
-Mat_<uchar> getCenteredWindow(DataCSV& points)
+Mat_<uchar> getCenteredWindow(DataCSV& points, double& maxX, double& maxY)
 {
 	// Create an image to draw the points on
-	double minX = FLT_MAX, minY = FLT_MAX, maxX = 0.0, maxY = 0.0;
+	double minX = FLT_MAX, minY = FLT_MAX;
 	for (int i = 0; i < points.number_of_rows; i++) //(i < points.number_of_rows - 1)?????????WHY
 	{
 		if (minX > points.rows.at(i).x)
@@ -511,7 +449,8 @@ void showSignature(char* fname)
 {
 	
 	DataCSV points = readCSV(fname);
-	Mat_<uchar> img = getCenteredWindow(points);
+	double maxX = 0.0f, maxY = 0.0f;
+	Mat_<uchar> img = getCenteredWindow(points, maxX, maxY);
 
 	// Draw the signature centered
 	drawSignature(img, points);
@@ -533,7 +472,8 @@ void testShowSignature()
 
 void signatureFeatureExtraction(char* fname) {
 	DataCSV points = readCSV(fname);
-	Mat_<uchar> img = getCenteredWindow(points);
+	double maxX = 0.0f, maxY = 0.0f;
+	Mat_<uchar> img = getCenteredWindow(points, maxX, maxY);
 
 	// Draw the signature centered
 	drawSignature(img, points);
@@ -560,16 +500,16 @@ void testSignatureFeatureExtraction() {
 std::vector<std::string> matching_table = { "Naggy",  "Kovues", "Toth", "Szabo", "Honot", "Varga", "Kiv", "Molnar", "Wemeth", "Fwba", "Balogh", "Pepp", "Taracs", "Fahasz", "Lakatos", "Meszavos", "Olah", "Simon", "Hm", "Fehete"};
 
 //modifies "feature_extraction_points" to be in the interval 0 -> 1 (every "feature_extraction_point" is divided by max coordonate on X and Y axes)
-void normalizeCoordinates(DataCSV points, std::vector<Point2f>& feature_extraction_points)
+void normalizeCoordinates(std::vector<Point2f>& feature_extraction_points, double maxX, double maxY)
 {
-	double maxX = 0.0f, maxY = 0.0f;
+	/*double maxX = 0.0f, maxY = 0.0f;
 	for (int i = 0; i < points.number_of_rows; i++)
 	{
 		if (maxX < points.rows.at(i).x)
 			maxX = points.rows.at(i).x;
 		if (maxY < points.rows.at(i).y)
 			maxY = points.rows.at(i).y;
-	}
+	}*/
 	//std::cout << maxX << ", " << maxY << std::endl;
 	for (Point2f& actualPoint : feature_extraction_points) {
 		actualPoint.x /= maxX;
@@ -605,11 +545,12 @@ void classifySignature(char* fname, bool cosineHeuristic)
 {
 	int actualUser = getActualUser(fname);
 	DataCSV points = readCSV(fname);
-	Mat_<uchar> img = getCenteredWindow(points);
+	double maxX = 0.0f, maxY = 0.0f;
+	Mat_<uchar> img = getCenteredWindow(points, maxX, maxY);
 	drawSignature(img, points);// Draw the signature centered
 
 	std::vector<Point2f> feature_extraction_points = featureExtraction(img);
-	normalizeCoordinates(points, feature_extraction_points);
+	normalizeCoordinates(feature_extraction_points, maxX, maxY);
 	std::vector<double> feature_extraction_points_double;
 	for (Point2f feature_extraction_point : feature_extraction_points)
 	{
@@ -648,10 +589,11 @@ void testClassifySignature(bool cosineHeuristic)
 //a nu se deschide fisierul .csv pana nu se termina de scris toate datele
 void writeDataSet(char* fname, int label) {
 	DataCSV points = readCSV(fname);
-	Mat_<uchar> img = getCenteredWindow(points);
+	double maxX = 0.0f, maxY = 0.0f;
+	Mat_<uchar> img = getCenteredWindow(points, maxX, maxY);
 	drawSignature(img, points); // Draw the signature centered
 	std::vector<Point2f> feature_extraction_points = featureExtraction(img);
-	normalizeCoordinates(points, feature_extraction_points);
+	normalizeCoordinates(feature_extraction_points, maxX, maxY);
 
 	//WRITE IN CSV FILE
 	std::fstream fout;
