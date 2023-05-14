@@ -94,77 +94,6 @@ typedef struct {
 	long number_of_rows;
 }DataCSV;
 
-double euclideanDistanceDrawSignature(const Point2f& a, const Point2f& b) {
-	double distance = 0.0;
-	distance += pow(a.x - b.x, 2) + pow(a.y - b.y, 2);
-	return sqrt(distance);
-}
-
-double cosineSimilarity(const std::vector<double>& a, const std::vector<double>& b) {
-	if (a.size() != b.size() || a.empty() || b.empty()) {
-		return 0.0;
-	}
-
-	double dotProduct = 0.0;
-	double normA = 0.0;
-	double normB = 0.0;
-
-	for (int i = 0; i < a.size(); i++) {
-		dotProduct += a[i] * b[i];
-		normA += a[i] * a[i];
-		normB += b[i] * b[i];
-	}
-
-	normA = std::sqrt(normA);
-	normB = std::sqrt(normB);
-
-	return dotProduct / (normA * normB);
-}
-
-double euclideanDistance(const std::vector<double>& a, const std::vector<double>& b) {
-	double distance = 0.0;
-	for (int i = 0; i < a.size(); ++i) {
-		distance += pow(a[i] - b[i], 2);
-	}
-	return sqrt(distance);
-}
-
-// k = nr of neighbours
-int knn_classify(const std::vector<DataPoint> dataset, const std::vector<double> input, int k, bool cosineHeuristic) {
-
-
-	std::vector<std::pair<double, int>> distances;
-	for (size_t i = 0; i < dataset.size(); ++i) {
-		double distance;
-		if(cosineHeuristic)
-			distance = cosineSimilarity(dataset[i].coord, input);
-		else
-			distance = euclideanDistance(dataset[i].coord, input);
-		distances.emplace_back(distance, dataset[i].label);
-	}
-	sort(distances.begin(), distances.end());
-	/*
-	for (std::pair<double, int> distance : distances) {
-		std::cout << "("<< distance.first << ", " << distance.second << ")  ";
-	}
-	*/
-	std::cout << std::endl;
-	std::vector<int> counts(dataset.size());
-	for (int i = 0; i < k; ++i) {
-		int label = distances[i].second;
-		counts[label]++;
-	}
-	int maxCount = 0;
-	int maxLabel = -1;
-	for (int i = 0; i < dataset.size(); ++i) {
-		if (counts[i] > maxCount) {
-			maxCount = counts[i];
-			maxLabel = i;
-		}
-	}
-	return maxLabel;
-}
-
 DataCSV readCSV(char* file_name)
 {
 	std::ifstream file(file_name);
@@ -260,6 +189,71 @@ std::vector<DataPoint> readDataSetPoint(char* file_name)
 	return dataPoints;
 }
 
+// << KNN >>
+double cosineSimilarity(const std::vector<double>& a, const std::vector<double>& b) {
+	if (a.size() != b.size() || a.empty() || b.empty()) {
+		return 0.0;
+	}
+
+	double dotProduct = 0.0;
+	double normA = 0.0;
+	double normB = 0.0;
+
+	for (int i = 0; i < a.size(); i++) {
+		dotProduct += a[i] * b[i];
+		normA += a[i] * a[i];
+		normB += b[i] * b[i];
+	}
+
+	normA = std::sqrt(normA);
+	normB = std::sqrt(normB);
+
+	return dotProduct / (normA * normB);
+}
+
+double euclideanDistance(const std::vector<double>& a, const std::vector<double>& b) {
+	double distance = 0.0;
+	for (int i = 0; i < a.size(); ++i) {
+		distance += pow(a[i] - b[i], 2);
+	}
+	return sqrt(distance);
+}
+// k = nr of neighbours
+int knn_classify(const std::vector<DataPoint> dataset, const std::vector<double> input, int k, bool cosineHeuristic) {
+
+
+	std::vector<std::pair<double, int>> distances;
+	for (size_t i = 0; i < dataset.size(); ++i) {
+		double distance;
+		if(cosineHeuristic)
+			distance = cosineSimilarity(dataset[i].coord, input);
+		else
+			distance = euclideanDistance(dataset[i].coord, input);
+		distances.emplace_back(distance, dataset[i].label);
+	}
+	sort(distances.begin(), distances.end());
+	/*
+	for (std::pair<double, int> distance : distances) {
+		std::cout << "("<< distance.first << ", " << distance.second << ")  ";
+	}
+	*/
+	std::cout << std::endl;
+	std::vector<int> counts(dataset.size());
+	for (int i = 0; i < k; ++i) {
+		int label = distances[i].second;
+		counts[label]++;
+	}
+	int maxCount = 0;
+	int maxLabel = -1;
+	for (int i = 0; i < dataset.size(); ++i) {
+		if (counts[i] > maxCount) {
+			maxCount = counts[i];
+			maxLabel = i;
+		}
+	}
+	return maxLabel;
+}
+
 std::tuple<Mat, Mat> splitImage(Mat& image, cv::Point split_coord, bool isHorizontal)
 {
 	if (isHorizontal) 
@@ -282,17 +276,6 @@ std::tuple<Mat, Mat> splitImage(Mat& image, cv::Point split_coord, bool isHorizo
 	}
 }
 
-//the next two functions does the same thing
-//Point2f massCenter(Mat& image)
-//{
-//	Moments m = moments(image, true);
-//	// Compute center of mass
-//	Point2f center(m.m10 / m.m00, m.m01 / m.m00);
-//	//std::cout << "Mass center coordinates: " << center.x << ", " << center.y << std::endl;
-//	//circle(image, center, 5, Scalar(255, 255, 255), FILLED);
-//	return center;
-//}
-
 Point2f massCenterSimple(Mat_<uchar> image)
 {
 	double m00 = 0, m10 = 0, m01 = 0;
@@ -312,32 +295,8 @@ Point2f massCenterSimple(Mat_<uchar> image)
 	return center;
 }
 
-//NOT WORKING
-Point2f massCenterPressure(Mat_<uchar> image, int add_rows, int add_cols, DataCSV data)
-{
-	double m00 = 0, m10 = 0, m01 = 0;
-	for (int i = 0; i < image.rows; i++) {
-		for (int j = 0; j < image.cols; j++) {
-			if (image(i, j) > 0) {
-				for (int k = 0; k < data.number_of_rows; k++) {
-					if ((int)data.rows.at(k).x == (i + add_rows) && (int)data.rows.at(k).y == (j + add_cols)){
-						m00 += data.rows.at(k).pressure;
-						m10 += j * data.rows.at(k).pressure;
-						m01 += i * data.rows.at(k).pressure;
-						break;
-					}
-				}
-			}
-		}
-	}
-	// Compute center of mass
-	Point2f center(m10 / m00, m01 / m00);
-	std::cout << "Mass center coordinates manual: " << center.x << ", " << center.y << std::endl;
-	//circle(image, center, 5, Scalar(255, 255, 255), FILLED);
-	return center;
-}
-
 //this function cuts the rows and columns (from the beginning and the end of the image) that doesn't have any colored pixel. It fits the signature in a window
+//USELESS FUNCTION
 void cropImage(Mat& image)
 {
 	int rows_to_delete_from_start = 0;
@@ -484,6 +443,13 @@ std::vector<Point2f> featureExtraction(Mat& image, DataCSV data)
 	return feature_points;
 }
 
+// << draw signature >>
+double euclideanDistanceDrawSignature(const Point2f& a, const Point2f& b) {
+	double distance = 0.0;
+	distance += pow(a.x - b.x, 2) + pow(a.y - b.y, 2);
+	return sqrt(distance);
+}
+
 void drawSignature(Mat& image, DataCSV& data)
 {
 	int treshhold = 150.0;
@@ -565,7 +531,6 @@ void signatureFeatureExtraction(char* fname) {
 	// Draw the signature centered
 	drawSignature(img, points);
 	std::vector<Point2f> feature_extraction_points = featureExtraction(img, points);
-	std::cout << feature_extraction_points.size() << std::endl;
 	for (Point2f feature_point : feature_extraction_points)
 	{
 		std::cout << feature_point.x << " " << feature_point.y << std::endl;
@@ -609,9 +574,8 @@ void normalizeCoordinates(std::vector<Point2f>& points)
 	}
 }
 
-
-void classifySignature(char* fname, bool cosineHeuristic)
-{
+//function which returns the opened user
+int getActualUser(char* fname) {
 	int actualUser = 0;
 	int i = 0;
 	for (i = 0; fname[i]; i++) {}
@@ -628,7 +592,12 @@ void classifySignature(char* fname, bool cosineHeuristic)
 		actualUser = (fname[i - positionsBack] - '0') * 10;
 	}
 	actualUser += fname[i - (positionsBack - 1)] - '0';
-	
+	return actualUser;
+}
+
+void classifySignature(char* fname, bool cosineHeuristic)
+{
+	int actualUser = getActualUser(fname);
 	DataCSV points = readCSV(fname);
 	//fname
 	Mat_<uchar> img = getCenteredWindow(points);
