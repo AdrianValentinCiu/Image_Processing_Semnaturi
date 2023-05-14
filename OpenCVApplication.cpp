@@ -193,7 +193,6 @@ std::vector<DataPoint> readDataSetPoint(char* file_name)
 }
 
 //----------------------------------- KNN ---------------------------------------
-// << KNN >>
 double cosineSimilarity(const std::vector<double>& a, const std::vector<double>& b) {
 	double dotProduct = 0.0;
 	double normA = 0.0;
@@ -220,8 +219,6 @@ double euclideanDistance(const std::vector<double>& a, const std::vector<double>
 }
 // k = nr of neighbours
 int knn_classify(const std::vector<DataPoint> dataset, const std::vector<double> input, int k, bool cosineHeuristic) {
-
-
 	std::vector<std::pair<double, int>> distances;
 	for (size_t i = 0; i < dataset.size(); ++i) {
 		double distance;
@@ -556,14 +553,14 @@ void classifySignature(char* fname, bool cosineHeuristic)
 		feature_extraction_points_double.push_back(feature_extraction_point.y);
 	}
 	drawFeaturePoints(img, feature_extraction_points);
-	std::vector<DataPoint> dataset = readDataSetPoint("D:\\ANUL3\\PI\\1.1.1.1.1.1.Proiect\\OpenCVApplication-VS2022_OCV460_basic\\DataSet.csv");
+	std::vector<DataPoint> dataset = readDataSetPoint("C:\\Users\\stef_\\Desktop\\Cursuri\\PI\\Project\\OpenCVApplication\\DataSet.csv");
 	/*
 	for (double point : feature_extraction_points_double) {
 		std::cout << point << "  ";
 	}
 	*/
 	std::cout << std::endl;
-	int label = knn_classify(dataset, feature_extraction_points_double, 17, cosineHeuristic);
+	int label = knn_classify(dataset, feature_extraction_points_double, 5, cosineHeuristic);
 	std::cout << "Opening -> USER " << actualUser << std::endl;
 	std::cout << "Result from KNN -> USER " << label << std::endl;
 	if(label>=0 && label<20)
@@ -615,7 +612,6 @@ void buildDataSet() {
 	int label = 0;
 	while (fg.getNextAbsFile(fname))
 	{
-		//std::cout << fname << std::endl;
 		if (fname[88] == '_') {
 			label = fname[87] - '0';
 		}
@@ -623,11 +619,60 @@ void buildDataSet() {
 			label = (fname[87] - '0') * 10 + (fname[88] - '0');
 		}
 		writeDataSet(fname, label);
-		//Mat src;
-		//src = imread(fname);
-		//imshow(fg.getFoundFileName(), src);
-		//if (waitKey() == 27) //ESC pressed
-		//	break;
+	}
+}
+
+//------------------------------- RESULTS + GRAPHICS ------------------------------
+
+void testClassifySignature(char* fname, int k, int& resultClasic, int& resultCosinus)
+{
+	int actualUser = getActualUser(fname);
+	DataCSV points = readCSV(fname);
+	double maxX = 0.0f, maxY = 0.0f;
+	Mat_<uchar> img = getCenteredWindow(points, maxX, maxY);
+	drawSignature(img, points);// Draw the signature centered
+
+	std::vector<Point2f> feature_extraction_points = featureExtraction(img);
+	normalizeCoordinates(feature_extraction_points, maxX, maxY);
+	std::vector<double> feature_extraction_points_double;
+	for (Point2f feature_extraction_point : feature_extraction_points)
+	{
+		//std::cout << feature_extraction_point.x << " " << feature_extraction_point.y << std::endl;
+		feature_extraction_points_double.push_back(feature_extraction_point.x);
+		feature_extraction_points_double.push_back(feature_extraction_point.y);
+	}
+	std::vector<DataPoint> dataset = readDataSetPoint("C:\\Users\\stef_\\Desktop\\Cursuri\\PI\\Project\\OpenCVApplication\\DataSet.csv");
+	int labelClasic = knn_classify(dataset, feature_extraction_points_double, k, false);
+	int labelCosinus = knn_classify(dataset, feature_extraction_points_double, k, true);
+	if (actualUser == labelClasic) {
+		resultClasic++;
+	}
+	if (actualUser == labelCosinus) {
+		resultCosinus++;
+	}
+}
+
+void testWriteResults(){
+	char folderName[MAX_PATH];
+	if (openFolderDlg(folderName) == 0)
+		return;
+	for (int k = 1; k <= 1; k++) {
+		char fname[MAX_PATH];
+		FileGetter fg(folderName, "csv");
+		int label = 0;
+		int resultsClasic = 0;
+		int resultsCosinus = 0;
+		while (fg.getNextAbsFile(fname))
+		{
+			testClassifySignature(fname, k, resultsClasic, resultsCosinus);
+		}
+		//WRITE IN CSV FILE
+		std::fstream fout;
+		fout.open("C:/Users/stef_/Desktop/Cursuri/PI/Project/OpenCVApplication/DataTest.csv", std::ios::out | std::ios::app);
+		// Insert the data to file 
+		fout << k << ", " << resultsClasic << ", " << resultsClasic << "\n";
+		// close the file
+		fout.close();
 	}
 }
 
@@ -635,7 +680,7 @@ void buildDataSet() {
 
 int main()
 {
-	cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_FATAL);
+	/*cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_FATAL);
 	projectPath = _wgetcwd(0, 0);
 
 	int op;
@@ -678,7 +723,8 @@ int main()
 			testClassifySignature(true);
 			break;
 		}
-	} while (op != 0);
-	//buildDataSet();
+	} while (op != 0);*/
+	//buildDataSet(); //DATA SET MAKING
+	testWriteResults(); //RESULTS + GRAPHICS
 	return 0;
 }
