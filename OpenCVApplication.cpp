@@ -553,7 +553,7 @@ void classifySignature(char* fname, bool cosineHeuristic)
 		feature_extraction_points_double.push_back(feature_extraction_point.y);
 	}
 	drawFeaturePoints(img, feature_extraction_points);
-	std::vector<DataPoint> dataset = readDataSetPoint("C:\\Users\\stef_\\Desktop\\Cursuri\\PI\\Project\\OpenCVApplication\\DataSet.csv");
+	std::vector<DataPoint> dataset = readDataSetPoint("D:\\ANUL3\\PI\\1.1.1.1.1.1.Proiect\\OpenCVApplication-VS2022_OCV460_basic\\DataSet.csv");
 	/*
 	for (double point : feature_extraction_points_double) {
 		std::cout << point << "  ";
@@ -591,7 +591,7 @@ void writeDataSet(char* fname, int label) {
 
 	//WRITE IN CSV FILE
 	std::fstream fout;
-	fout.open("C:/Users/stef_/Desktop/Cursuri/PI/Project/OpenCVApplication/Output.csv", std::ios::out | std::ios::app);
+	fout.open("D:\\ANUL3\\PI\\1.1.1.1.1.1.Proiect\\OpenCVApplication-VS2022_OCV460_basic\\Output.csv", std::ios::out | std::ios::app);
 	// Insert the data to file 
 	fout << label << ", ";
 	for (Point2f feature_point : feature_extraction_points)
@@ -641,7 +641,7 @@ void testClassifySignature(char* fname, int k, int& resultClasic, int& resultCos
 		feature_extraction_points_double.push_back(feature_extraction_point.x);
 		feature_extraction_points_double.push_back(feature_extraction_point.y);
 	}
-	std::vector<DataPoint> dataset = readDataSetPoint("C:\\Users\\stef_\\Desktop\\Cursuri\\PI\\Project\\OpenCVApplication\\DataSet.csv");
+	std::vector<DataPoint> dataset = readDataSetPoint("D:\\ANUL3\\PI\\1.1.1.1.1.1.Proiect\\OpenCVApplication-VS2022_OCV460_basic\\DataSet.csv");
 	int labelClasic = knn_classify(dataset, feature_extraction_points_double, k, false);
 	int labelCosinus = knn_classify(dataset, feature_extraction_points_double, k, true);
 	if (actualUser == labelClasic) {
@@ -656,7 +656,7 @@ void testWriteResults(){
 	char folderName[MAX_PATH];
 	if (openFolderDlg(folderName) == 0)
 		return;
-	for (int k = 1; k <= 1; k++) {
+	for (int k = 1; k <= 17; k++) {
 		char fname[MAX_PATH];
 		FileGetter fg(folderName, "csv");
 		int label = 0;
@@ -668,9 +668,9 @@ void testWriteResults(){
 		}
 		//WRITE IN CSV FILE
 		std::fstream fout;
-		fout.open("C:/Users/stef_/Desktop/Cursuri/PI/Project/OpenCVApplication/DataTest.csv", std::ios::out | std::ios::app);
+		fout.open("D:\\ANUL3\\PI\\1.1.1.1.1.1.Proiect\\OpenCVApplication-VS2022_OCV460_basic\\DataTest.csv", std::ios::out | std::ios::app);
 		// Insert the data to file 
-		fout << k << ", " << resultsClasic << ", " << resultsClasic << "\n";
+		fout << k << ", " << resultsClasic << ", " << resultsCosinus << "\n";
 		// close the file
 		fout.close();
 	}
@@ -680,7 +680,9 @@ void testWriteResults(){
 
 int main()
 {
-	/*cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_FATAL);
+	//buildDataSet(); //DATA SET MAKING
+	//testWriteResults(); //RESULTS + GRAPHICS
+	cv::utils::logging::setLogLevel(cv::utils::logging::LOG_LEVEL_FATAL);
 	projectPath = _wgetcwd(0, 0);
 
 	int op;
@@ -722,9 +724,8 @@ int main()
 		case 7:
 			testClassifySignature(true);
 			break;
-		}
-	} while (op != 0);*/
-	//buildDataSet(); //DATA SET MAKING
-	testWriteResults(); //RESULTS + GRAPHICS
+		} 
+		
+	} while (op != 0);
 	return 0;
 }
