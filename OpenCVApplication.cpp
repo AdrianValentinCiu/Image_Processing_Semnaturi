@@ -94,6 +94,8 @@ typedef struct {
 	long number_of_rows;
 }DataCSV;
 
+//----------------------------------- READING -----------------------------------
+
 DataCSV readCSV(char* file_name)
 {
 	std::ifstream file(file_name);
@@ -189,6 +191,7 @@ std::vector<DataPoint> readDataSetPoint(char* file_name)
 	return dataPoints;
 }
 
+//----------------------------------- KNN ---------------------------------------
 // << KNN >>
 double cosineSimilarity(const std::vector<double>& a, const std::vector<double>& b) {
 	if (a.size() != b.size() || a.empty() || b.empty()) {
@@ -253,6 +256,8 @@ int knn_classify(const std::vector<DataPoint> dataset, const std::vector<double>
 	}
 	return maxLabel;
 }
+
+//----------------------------------- FEATURE EXTRACTION ------------------------
 
 std::tuple<Mat, Mat> splitImage(Mat& image, cv::Point split_coord, bool isHorizontal)
 {
@@ -393,7 +398,7 @@ std::vector<Point2f> splittingCoordHorizontal(Mat& image, Point2f init_mass_cent
 	return feature_points;
 }
 
-std::vector<Point2f> splittingCoordVertical(Mat& image, Point2f init_mass_center, DataCSV data)
+std::vector<Point2f> splittingCoordVertical(Mat& image, Point2f init_mass_center)
 {
 	std::vector<Point2f> feature_points;
 	std::tuple<Mat, Mat> splitted_img = splitImage(image, init_mass_center, false);
@@ -433,17 +438,18 @@ std::vector<Point2f> splittingCoordVertical(Mat& image, Point2f init_mass_center
 	return feature_points;
 }
 
-std::vector<Point2f> featureExtraction(Mat& image, DataCSV data)
+std::vector<Point2f> featureExtraction(Mat& image)
 {
 	std::vector<Point2f> feature_points;
 	std::vector<Point2f> left_feature_points = splittingCoordHorizontal(image, massCenterSimple(image));
-	std::vector<Point2f> right_feature_points = splittingCoordVertical(image, massCenterSimple(image), data);
+	std::vector<Point2f> right_feature_points = splittingCoordVertical(image, massCenterSimple(image));
 	feature_points.insert(feature_points.begin(), left_feature_points.begin(), left_feature_points.end());
 	feature_points.insert(feature_points.end(), right_feature_points.begin(), right_feature_points.end());
 	return feature_points;
 }
 
-// << draw signature >>
+//-------------------------- DRAW SIGNATURE && FUNCTIONS ------------------------
+
 double euclideanDistanceDrawSignature(const Point2f& a, const Point2f& b) {
 	double distance = 0.0;
 	distance += pow(a.x - b.x, 2) + pow(a.y - b.y, 2);
@@ -473,11 +479,12 @@ void drawFeaturePoints(Mat& image, std::vector<Point2f> feature_extraction_point
 	}
 }
 
+//returns a black image where the signature can fit centered. It also modifies the signature coordinates to fit in the new image.
 Mat_<uchar> getCenteredWindow(DataCSV& points)
 {
 	// Create an image to draw the points on
 	double minX = FLT_MAX, minY = FLT_MAX, maxX = 0.0, maxY = 0.0;
-	for (int i = 0; i < points.number_of_rows - 1; i++)
+	for (int i = 0; i < points.number_of_rows; i++) //(i < points.number_of_rows - 1)?????????WHY
 	{
 		if (minX > points.rows.at(i).x)
 			minX = points.rows.at(i).x;
@@ -491,7 +498,7 @@ Mat_<uchar> getCenteredWindow(DataCSV& points)
 	maxX -= minX;
 	maxY -= minY;
 	//std::cout << maxX << " " << minX << " " << maxY << "  " << minY << std::endl;
-	for (int i = 0; i < points.number_of_rows - 1; i++)
+	for (int i = 0; i < points.number_of_rows; i++) //(i < points.number_of_rows - 1)?????????WHY
 	{
 		points.rows.at(i).x -= minX;
 		points.rows.at(i).y -= minY;
@@ -530,7 +537,7 @@ void signatureFeatureExtraction(char* fname) {
 
 	// Draw the signature centered
 	drawSignature(img, points);
-	std::vector<Point2f> feature_extraction_points = featureExtraction(img, points);
+	std::vector<Point2f> feature_extraction_points = featureExtraction(img);
 	for (Point2f feature_point : feature_extraction_points)
 	{
 		std::cout << feature_point.x << " " << feature_point.y << std::endl;
@@ -552,26 +559,25 @@ void testSignatureFeatureExtraction() {
 
 std::vector<std::string> matching_table = { "Naggy",  "Kovues", "Toth", "Szabo", "Honot", "Varga", "Kiv", "Molnar", "Wemeth", "Fwba", "Balogh", "Pepp", "Taracs", "Fahasz", "Lakatos", "Meszavos", "Olah", "Simon", "Hm", "Fehete"};
 
-void normalizeCoordinates(std::vector<Point2f>& points)
+//modifies "feature_extraction_points" to be in the interval 0 -> 1 (every "feature_extraction_point" is divided by max coordonate on X and Y axes)
+void normalizeCoordinates(DataCSV points, std::vector<Point2f>& feature_extraction_points)
 {
-	float maxX = 0.0f;
-	float maxY = 0.0f;
-	for (Point2f actualPoint : points) {
-		if (actualPoint.x > maxX) {
-			maxX = actualPoint.x;
-		}
-		if (actualPoint.y > maxY) {
-			maxY = actualPoint.y;
-		}
+	double maxX = 0.0f, maxY = 0.0f;
+	for (int i = 0; i < points.number_of_rows; i++)
+	{
+		if (maxX < points.rows.at(i).x)
+			maxX = points.rows.at(i).x;
+		if (maxY < points.rows.at(i).y)
+			maxY = points.rows.at(i).y;
 	}
-	std::cout << maxX << ", " << maxY << std::endl;
-	for (Point2f& actualPoint : points) {
+	//std::cout << maxX << ", " << maxY << std::endl;
+	for (Point2f& actualPoint : feature_extraction_points) {
 		actualPoint.x /= maxX;
 		actualPoint.y /= maxY;
 	}
-	for (Point2f actualPoint : points) {
+	/*for (Point2f actualPoint : points) {
 		std::cout << actualPoint.x << ", " << actualPoint.y << std::endl;
-	}
+	}*/
 }
 
 //function which returns the opened user
@@ -599,13 +605,11 @@ void classifySignature(char* fname, bool cosineHeuristic)
 {
 	int actualUser = getActualUser(fname);
 	DataCSV points = readCSV(fname);
-	//fname
 	Mat_<uchar> img = getCenteredWindow(points);
+	drawSignature(img, points);// Draw the signature centered
 
-	// Draw the signature centered
-	drawSignature(img, points);
-	std::vector<Point2f> feature_extraction_points = featureExtraction(img, points);
-	normalizeCoordinates(feature_extraction_points);
+	std::vector<Point2f> feature_extraction_points = featureExtraction(img);
+	normalizeCoordinates(points, feature_extraction_points);
 	std::vector<double> feature_extraction_points_double;
 	for (Point2f feature_extraction_point : feature_extraction_points)
 	{
@@ -614,16 +618,16 @@ void classifySignature(char* fname, bool cosineHeuristic)
 		feature_extraction_points_double.push_back(feature_extraction_point.y);
 	}
 	drawFeaturePoints(img, feature_extraction_points);
-	std::vector<DataPoint> dataset = readDataSetPoint("D:\\ANUL3\\PI\\1.1.1.1.1.1.Proiect\\OpenCVApplication-VS2022_OCV460_basic\\DataSet.csv");
+	std::vector<DataPoint> dataset = readDataSetPoint("C:\\Users\\stef_\\Desktop\\Cursuri\\PI\\Project\\OpenCVApplication\\DataSet.csv");
 	/*
 	for (double point : feature_extraction_points_double) {
 		std::cout << point << "  ";
 	}
 	*/
 	std::cout << std::endl;
-	int label = knn_classify(dataset, feature_extraction_points_double, 117, cosineHeuristic);
-	std::cout << "Opening USER " << actualUser << std::endl;
-	std::cout << "USER" << label << std::endl;
+	int label = knn_classify(dataset, feature_extraction_points_double, 5, cosineHeuristic);
+	std::cout << "Opening -> USER " << actualUser << std::endl;
+	std::cout << "Result from KNN -> USER " << label << std::endl;
 	if(label>=0 && label<20)
 		std::cout << "Signature belongs to: "<< matching_table[label - 1] << std::endl;
 	imshow("Signature with feature extraction points", img);
@@ -639,14 +643,15 @@ void testClassifySignature(bool cosineHeuristic)
 	}
 }
 
+//-------------------------------- DATA SET MAKING -------------------------------
+
 //a nu se deschide fisierul .csv pana nu se termina de scris toate datele
 void writeDataSet(char* fname, int label) {
 	DataCSV points = readCSV(fname);
 	Mat_<uchar> img = getCenteredWindow(points);
-	// Draw the signature centered
-	drawSignature(img, points);
-	std::vector<Point2f> feature_extraction_points = featureExtraction(img, points);
-	normalizeCoordinates(feature_extraction_points);
+	drawSignature(img, points); // Draw the signature centered
+	std::vector<Point2f> feature_extraction_points = featureExtraction(img);
+	normalizeCoordinates(points, feature_extraction_points);
 
 	//WRITE IN CSV FILE
 	std::fstream fout;
@@ -705,7 +710,7 @@ int main()
 		printf(" 3 - Color to Gray\n");
 		printf(" 4 - Show signature\n");
 		printf(" 5 - Show signature + feature extraction\n");
-		printf(" 6 - Classify signature Euclidina Distance Heuristic\n");
+		printf(" 6 - Classify signature Euclidian Distance Heuristic\n");
 		printf(" 7 - Classify signature Cosine Similarity Heuristic\n");
 		printf(" 0 - Exit\n\n");
 		printf("Option: ");
