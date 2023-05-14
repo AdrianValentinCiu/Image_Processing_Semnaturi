@@ -5,6 +5,7 @@
 #include <opencv2/core/utils/logger.hpp>
 #include <fstream>
 #include "OpenCVApplication.h"
+#include <cmath>
 
 wchar_t* projectPath;
 void testOpenImage()
@@ -194,10 +195,6 @@ std::vector<DataPoint> readDataSetPoint(char* file_name)
 //----------------------------------- KNN ---------------------------------------
 // << KNN >>
 double cosineSimilarity(const std::vector<double>& a, const std::vector<double>& b) {
-	if (a.size() != b.size() || a.empty() || b.empty()) {
-		return 0.0;
-	}
-
 	double dotProduct = 0.0;
 	double normA = 0.0;
 	double normB = 0.0;
@@ -211,7 +208,7 @@ double cosineSimilarity(const std::vector<double>& a, const std::vector<double>&
 	normA = std::sqrt(normA);
 	normB = std::sqrt(normB);
 
-	return dotProduct / (normA * normB);
+	return  std::acos(dotProduct / (normA * normB)) * 180.0 / PI;
 }
 
 double euclideanDistance(const std::vector<double>& a, const std::vector<double>& b) {
@@ -239,8 +236,8 @@ int knn_classify(const std::vector<DataPoint> dataset, const std::vector<double>
 	for (std::pair<double, int> distance : distances) {
 		std::cout << "("<< distance.first << ", " << distance.second << ")  ";
 	}
-	*/
 	std::cout << std::endl;
+	*/
 	std::vector<int> counts(dataset.size());
 	for (int i = 0; i < k; ++i) {
 		int label = distances[i].second;
@@ -559,14 +556,14 @@ void classifySignature(char* fname, bool cosineHeuristic)
 		feature_extraction_points_double.push_back(feature_extraction_point.y);
 	}
 	drawFeaturePoints(img, feature_extraction_points);
-	std::vector<DataPoint> dataset = readDataSetPoint("C:\\Users\\stef_\\Desktop\\Cursuri\\PI\\Project\\OpenCVApplication\\DataSet.csv");
+	std::vector<DataPoint> dataset = readDataSetPoint("D:\\ANUL3\\PI\\1.1.1.1.1.1.Proiect\\OpenCVApplication-VS2022_OCV460_basic\\DataSet.csv");
 	/*
 	for (double point : feature_extraction_points_double) {
 		std::cout << point << "  ";
 	}
 	*/
 	std::cout << std::endl;
-	int label = knn_classify(dataset, feature_extraction_points_double, 5, cosineHeuristic);
+	int label = knn_classify(dataset, feature_extraction_points_double, 17, cosineHeuristic);
 	std::cout << "Opening -> USER " << actualUser << std::endl;
 	std::cout << "Result from KNN -> USER " << label << std::endl;
 	if(label>=0 && label<20)
